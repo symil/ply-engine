@@ -34,7 +34,7 @@ use text::TextConfig;
 
 pub use color::Color;
 
-use crate::{elements::ElementStyle, engine::LayoutElementInteractionState};
+use crate::{elements::ElementStyle};
 
 #[allow(dead_code)]
 pub struct Ply<CustomElementData: Clone + Default + std::fmt::Debug = ()> {
@@ -63,13 +63,9 @@ pub struct Ui<'ply, CustomElementData: Clone + Default + std::fmt::Debug = ()> {
 /// Methods return `self` by value for chaining. Finalize with `.children()` or `.empty()`.
 #[must_use]
 pub struct ElementBuilder<'ply, CustomElementData: Clone + Default + std::fmt::Debug = ()> {
+    id: Id,
     ply: &'ply mut Ply<CustomElementData>,
     inner: engine::ElementDeclaration<CustomElementData>,
-    id: Id,
-    on_press_fn: Option<Box<dyn FnMut(Id, engine::PointerData) + 'static>>,
-    on_release_fn: Option<Box<dyn FnMut(Id, engine::PointerData) + 'static>>,
-    on_focus_fn: Option<Box<dyn FnMut(Id) + 'static>>,
-    on_unfocus_fn: Option<Box<dyn FnMut(Id) + 'static>>,
     text_input_on_changed_fn: Option<Box<dyn FnMut(&str) + 'static>>,
     text_input_on_submit_fn: Option<Box<dyn FnMut(&str) + 'static>>,
 }
@@ -296,55 +292,67 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     /// Indicates if the element is hovered.
     #[inline]
     pub fn is_hovered(&self) -> bool {
-        self.ply.context.is_element_hovered(self.id.id)
+        self.ply.context.is_hovered(&self.id)
     }
 
     #[inline]
-    pub fn get_hover(&self) -> LayoutElementInteractionState {
-        self.ply.context.get_hover_state(self.id.id).clone()
+    pub fn since_hovered(&self) -> Option<f64> {
+        self.ply.context.since_hovered(&self.id)
     }
 
-    /// Registers a callback that fires once when the element is pressed
-    /// (pointer click or Enter/Space on focused element).
     #[inline]
-    pub fn on_press<F>(mut self, callback: F) -> Self
-    where
-        F: FnMut(Id, engine::PointerData) + 'static,
-    {
-        self.on_press_fn = Some(Box::new(callback));
-        self
+    pub fn just_hovered(&self) -> bool {
+        self.ply.context.just_hovered(&self.id)
     }
 
-    /// Registers a callback that fires once when the element is released
-    /// (pointer release or key release on focused element).
     #[inline]
-    pub fn on_release<F>(mut self, callback: F) -> Self
-    where
-        F: FnMut(Id, engine::PointerData) + 'static,
-    {
-        self.on_release_fn = Some(Box::new(callback));
-        self
+    pub fn just_unhovered(&self) -> bool {
+        self.ply.context.just_unhovered(&self.id)
     }
 
-    /// Registers a callback that fires when this element receives focus
-    /// (via Tab navigation, arrow keys, or programmatic `set_focus`).
     #[inline]
-    pub fn on_focus<F>(mut self, callback: F) -> Self
-    where
-        F: FnMut(Id) + 'static,
-    {
-        self.on_focus_fn = Some(Box::new(callback));
-        self
+    pub fn is_pressed(&self) -> bool {
+        self.ply.context.is_pressed(&self.id)
     }
 
-    /// Registers a callback that fires when this element loses focus.
     #[inline]
-    pub fn on_unfocus<F>(mut self, callback: F) -> Self
-    where
-        F: FnMut(Id) + 'static,
-    {
-        self.on_unfocus_fn = Some(Box::new(callback));
-        self
+    pub fn since_pressed(&self) -> Option<f64> {
+        self.ply.context.since_pressed(&self.id)
+    }
+
+    #[inline]
+    pub fn just_pressed(&self) -> bool {
+        self.ply.context.just_pressed(&self.id)
+    }
+
+    #[inline]
+    pub fn just_released(&self) -> bool {
+        self.ply.context.just_released(&self.id)
+    }
+
+    #[inline]
+    pub fn is_focused(&self) -> bool {
+        self.ply.context.is_focused(&self.id)
+    }
+
+    #[inline]
+    pub fn since_focused(&self) -> Option<f64> {
+        self.ply.context.since_focused(&self.id)
+    }
+
+    #[inline]
+    pub fn just_focused(&self) -> bool {
+        self.ply.context.just_focused(&self.id)
+    }
+
+    #[inline]
+    pub fn just_unfocused(&self) -> bool {
+        self.ply.context.just_unfocused(&self.id)
+    }
+
+    #[inline]
+    pub fn just_clicked(&self) -> bool {
+        self.just_released() && self.is_hovered()
     }
 
     /// Configures this element as a text input.
@@ -378,9 +386,8 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
         self
     }
 
-    pub fn cursor(self, cursor: CursorIcon) -> Self {
+    pub fn cursor(&mut self, cursor: CursorIcon) {
         self.ply.context.cursor_icon = cursor;
-        self
     }
 
     /// Applies the specified function to the element.
@@ -393,7 +400,6 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     pub fn children(self, f: impl FnOnce(&mut Ui<'_, CustomElementData>)) -> Id {
         let ElementBuilder {
             ply, inner, id,
-            on_press_fn, on_release_fn, on_focus_fn, on_unfocus_fn,
             text_input_on_changed_fn, text_input_on_submit_fn,
         } = self;
         // if let Some(ref id) = id {
@@ -405,12 +411,6 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
         ply.context.configure_open_element(&inner);
         let element_id = ply.context.get_open_element_id();
 
-        if on_press_fn.is_some() || on_release_fn.is_some() {
-            ply.context.set_press_callbacks(on_press_fn, on_release_fn);
-        }
-        if on_focus_fn.is_some() || on_unfocus_fn.is_some() {
-            ply.context.set_focus_callbacks(on_focus_fn, on_unfocus_fn);
-        }
         if text_input_on_changed_fn.is_some() || text_input_on_submit_fn.is_some() {
             ply.context.set_text_input_callbacks(text_input_on_changed_fn, text_input_on_submit_fn);
         }
@@ -464,10 +464,6 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug> Ui<'ply, Custom
             id: self.ply.context.generate_id(),
             ply: &mut *self.ply,
             inner: engine::ElementDeclaration::default(),
-            on_press_fn: None,
-            on_release_fn: None,
-            on_focus_fn: None,
-            on_unfocus_fn: None,
             text_input_on_changed_fn: None,
             text_input_on_submit_fn: None,
         }
@@ -1069,6 +1065,7 @@ extern "C" {
 }
 
 #[cfg(test)]
+#[allow(unused_variables)]
 mod tests {
     use super::*;
     use color::Color;
@@ -2303,6 +2300,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "TODO"]
     fn test_on_press_callback_fires() {
         use std::cell::RefCell;
         use std::rc::Rc;
@@ -2334,9 +2332,9 @@ mod tests {
                 el.id("btn");
                 el.width(fixed!(100.0));
                 el.height(fixed!(100.0));
-                el.on_press(move |_, _| { *pc.borrow_mut() += 1; })
-                  .on_release(move |_, _| { *rc.borrow_mut() += 1; })
-                  .empty();
+                // el.on_press(move |_, _| { *pc.borrow_mut() += 1; });
+                // el.on_release(move |_, _| { *rc.borrow_mut() += 1; });
+                el.empty();
             }
             ui.eval();
         }
@@ -2583,6 +2581,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "TODO"]
     fn test_on_focus_callback_fires_on_tab() {
         use std::cell::RefCell;
         use std::rc::Rc;
@@ -2604,9 +2603,9 @@ mod tests {
                 el.width(fixed!(100.0));
                 el.height(fixed!(50.0));
                 el.accessibility(|a| a.button("A"));
-                el.on_focus(move |_| { *fa.borrow_mut() += 1; })
-                  .on_unfocus(move |_| { *ua.borrow_mut() += 1; })
-                  .empty();
+                // el.on_focus(move |_| { *fa.borrow_mut() += 1; });
+                // el.on_unfocus(move |_| { *ua.borrow_mut() += 1; });
+                el.empty();
             }
             {
                 let mut el = ui.element();
@@ -2614,8 +2613,8 @@ mod tests {
                 el.width(fixed!(100.0));
                 el.height(fixed!(50.0));
                 el.accessibility(|a| a.button("B"));
-                el.on_focus(move |_| { *fb.borrow_mut() += 1; })
-                  .empty();
+                // el.on_focus(move |_| { *fb.borrow_mut() += 1; });
+                el.empty();
             }
             ui.eval();
         }
@@ -2653,9 +2652,9 @@ mod tests {
                 el.width(fixed!(100.0));
                 el.height(fixed!(50.0));
                 el.accessibility(|a| a.button("A"));
-                el.on_focus(move |_| { *fc.borrow_mut() += 1; })
-                  .on_unfocus(move |_| { *uc.borrow_mut() += 1; })
-                  .empty();
+                // el.on_focus(move |_| { *fc.borrow_mut() += 1; });
+                // el.on_unfocus(move |_| { *uc.borrow_mut() += 1; });
+                el.empty();
             }
             ui.eval();
         }

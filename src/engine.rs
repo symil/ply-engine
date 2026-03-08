@@ -1,6 +1,8 @@
 //! Pure Rust implementation of the Ply layout engine.
 //! A UI layout engine inspired by Clay.
 
+use std::u32;
+
 use macroquad::miniquad::CursorIcon;
 use rustc_hash::FxHashMap;
 
@@ -358,11 +360,11 @@ struct LayoutElement {
     floating_children_count: u16,
 }
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct LayoutElementInteractionState {
     pub added_since: Option<f64>,
-    pub just_added: bool,
-    pub just_removed: bool,
+    pub added_on_gen: u32,
+    pub removed_on_gen: u32,
 }
 
 impl LayoutElementInteractionState {
@@ -371,10 +373,20 @@ impl LayoutElementInteractionState {
     }
 }
 
+impl Default for LayoutElementInteractionState {
+    fn default() -> Self {
+        Self {
+            added_since: None,
+            added_on_gen: u32::MAX,
+            removed_on_gen: u32::MAX,
+        }
+    }
+}
+
 const DEFAULT_STATE: &LayoutElementInteractionState = &LayoutElementInteractionState {
     added_since: None,
-    just_added: false,
-    just_removed: false,
+    added_on_gen: u32::MAX,
+    removed_on_gen: u32::MAX,
 };
 
 #[derive(Default)]
@@ -383,10 +395,8 @@ struct LayoutElementHashMapItem {
     element_id: Id,
     layout_element_index: i32,
     hover: LayoutElementInteractionState,
-    on_press_fn: Option<Box<dyn FnMut(Id, PointerData)>>,
-    on_release_fn: Option<Box<dyn FnMut(Id, PointerData)>>,
-    on_focus_fn: Option<Box<dyn FnMut(Id)>>,
-    on_unfocus_fn: Option<Box<dyn FnMut(Id)>>,
+    press: LayoutElementInteractionState,
+    focus: LayoutElementInteractionState,
     on_text_changed_fn: Option<Box<dyn FnMut(&str)>>,
     on_text_submit_fn: Option<Box<dyn FnMut(&str)>>,
     is_text_input: bool,
@@ -403,10 +413,8 @@ impl Clone for LayoutElementHashMapItem {
             element_id: self.element_id.clone(),
             layout_element_index: self.layout_element_index,
             hover: self.hover.clone(),
-            on_press_fn: None,
-            on_release_fn: None,
-            on_focus_fn: None,
-            on_unfocus_fn: None,
+            press: self.press.clone(),
+            focus: self.focus.clone(),
             on_text_changed_fn: None,
             on_text_submit_fn: None,
             is_text_input: self.is_text_input,
@@ -927,16 +935,14 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
                 if item.generation <= gen {
                     if gen - item.generation > 1 {
                         item.hover = Default::default();
+                        item.press = Default::default();
+                        item.focus = Default::default();
                     }
 
                     item.element_id = element_id.clone();
                     item.generation = gen + 1;
                     item.layout_element_index = layout_element_index;
                     item.collision = false;
-                    item.on_press_fn = None;
-                    item.on_release_fn = None;
-                    item.on_focus_fn = None;
-                    item.on_unfocus_fn = None;
                     item.on_text_changed_fn = None;
                     item.on_text_submit_fn = None;
                     item.is_text_input = false;
@@ -953,10 +959,8 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
                     generation: gen + 1,
                     bounding_box: BoundingBox::default(),
                     hover: Default::default(),
-                    on_press_fn: None,
-                    on_release_fn: None,
-                    on_focus_fn: None,
-                    on_unfocus_fn: None,
+                    press: Default::default(),
+                    focus: Default::default(),
                     on_text_changed_fn: None,
                     on_text_submit_fn: None,
                     is_text_input: false,
@@ -4093,9 +4097,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
                         if let Some(item) = self.layout_element_map.get_mut(&elem_id) {
                             if item.hover.added_since.is_none() {
                                 item.hover.added_since = Some(self.current_time);
-                                item.hover.just_added = true;
-                            } else {
-                                item.hover.just_added = false;
+                                item.hover.added_on_gen = self.generation;
                             }
                         }
                         self.pointer_over_ids.push(elem_id_copy);
@@ -4103,9 +4105,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
                     } else if let Some(item) = self.layout_element_map.get_mut(&elem_id) {
                         if item.hover.added_since.is_some() {
                             item.hover.added_since = None;
-                            item.hover.just_removed = true;
-                        } else {
-                            item.hover.just_removed = false;
+                            item.hover.removed_on_gen = self.generation;
                         }
                     }
 
@@ -4211,9 +4211,8 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
                     self.pressed_element_ids = self.pointer_over_ids.clone();
                     for eid in self.pointer_over_ids.clone().iter() {
                         if let Some(item) = self.layout_element_map.get_mut(&eid.id) {
-                            if let Some(ref mut callback) = item.on_press_fn {
-                                callback(eid.clone(), self.pointer_info);
-                            }
+                            item.press.added_since = Some(self.current_time);
+                            item.press.added_on_gen = self.generation;
                         }
                     }
                 }
@@ -4223,8 +4222,9 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
                 let pressed = std::mem::take(&mut self.pressed_element_ids);
                 for eid in pressed.iter() {
                     if let Some(item) = self.layout_element_map.get_mut(&eid.id) {
-                        if let Some(ref mut callback) = item.on_release_fn {
-                            callback(eid.clone(), self.pointer_info);
+                        if item.press.added_since.is_some() {
+                            item.press.added_since = None;
+                            item.press.removed_on_gen = self.generation;
                         }
                     }
                 }
@@ -4407,11 +4407,75 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
         }
     }
 
-    pub fn get_hover_state(&self, elem_id: u32) -> &LayoutElementInteractionState {
+    fn get_state(&self, elem_id: &Id, get_state: impl Fn(&LayoutElementHashMapItem) -> &LayoutElementInteractionState) -> &LayoutElementInteractionState {
         self.layout_element_map
-            .get(&elem_id)
-            .map(|item| &item.hover)
+            .get(&elem_id.id)
+            .map(get_state)
             .unwrap_or(DEFAULT_STATE)
+    }
+
+    fn has_state(&self, elem_id: &Id, get_state: impl Fn(&LayoutElementHashMapItem) -> &LayoutElementInteractionState) -> bool {
+        self.get_state(elem_id, get_state).added_since.is_some()
+    }
+
+    fn state_since(&self, elem_id: &Id, get_state: impl Fn(&LayoutElementHashMapItem) -> &LayoutElementInteractionState) -> Option<f64> {
+        self.get_state(elem_id, get_state).added_since.map(|time| self.current_time - time)
+    }
+
+    fn state_just_added(&self, elem_id: &Id, get_state: impl Fn(&LayoutElementHashMapItem) -> &LayoutElementInteractionState) -> bool {
+        self.get_state(elem_id, get_state).added_on_gen == self.generation - 1
+    }
+
+    fn state_just_removed(&self, elem_id: &Id, get_state: impl Fn(&LayoutElementHashMapItem) -> &LayoutElementInteractionState) -> bool {
+        self.get_state(elem_id, get_state).removed_on_gen == self.generation - 1
+    }
+
+    pub fn is_hovered(&self, elem_id: &Id) -> bool {
+        self.has_state(elem_id, |item| &item.hover)
+    }
+
+    pub fn since_hovered(&self, elem_id: &Id) -> Option<f64> {
+        self.state_since(elem_id, |item| &item.hover)
+    }
+
+    pub fn just_hovered(&self, elem_id: &Id) -> bool {
+        self.state_just_added(elem_id, |item| &item.hover)
+    }
+
+    pub fn just_unhovered(&self, elem_id: &Id) -> bool {
+        self.state_just_removed(elem_id, |item| &item.hover)
+    }
+
+    pub fn is_pressed(&self, elem_id: &Id) -> bool {
+        self.has_state(elem_id, |item| &item.press)
+    }
+
+    pub fn since_pressed(&self, elem_id: &Id) -> Option<f64> {
+        self.state_since(elem_id, |item| &item.press)
+    }
+
+    pub fn just_pressed(&self, elem_id: &Id) -> bool {
+        self.state_just_added(elem_id, |item| &item.press)
+    }
+
+    pub fn just_released(&self, elem_id: &Id) -> bool {
+        self.state_just_removed(elem_id, |item| &item.press)
+    }
+
+    pub fn is_focused(&self, elem_id: &Id) -> bool {
+        self.has_state(elem_id, |item| &item.focus)
+    }
+
+    pub fn since_focused(&self, elem_id: &Id) -> Option<f64> {
+        self.state_since(elem_id, |item| &item.focus)
+    }
+
+    pub fn just_focused(&self, elem_id: &Id) -> bool {
+        self.state_just_added(elem_id, |item| &item.focus)
+    }
+
+    pub fn just_unfocused(&self, elem_id: &Id) -> bool {
+        self.state_just_removed(elem_id, |item| &item.focus)
     }
 
     pub fn is_element_hovered(&self, elem_id: u32) -> bool {
@@ -4428,19 +4492,6 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
         let open_idx = self.get_open_layout_element();
         let elem_id = self.layout_elements[open_idx].id;
         self.pressed_element_ids.iter().any(|eid| eid.id == elem_id)
-    }
-
-    pub fn set_press_callbacks(
-        &mut self,
-        on_press: Option<Box<dyn FnMut(Id, PointerData)>>,
-        on_release: Option<Box<dyn FnMut(Id, PointerData)>>,
-    ) {
-        let open_idx = self.get_open_layout_element();
-        let elem_id = self.layout_elements[open_idx].id;
-        if let Some(item) = self.layout_element_map.get_mut(&elem_id) {
-            item.on_press_fn = on_press;
-            item.on_release_fn = on_release;
-        }
     }
 
     /// Returns true if the currently open element has focus.
@@ -4485,9 +4536,9 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
         // Fire on_unfocus on old element
         if old_id != 0 {
             if let Some(item) = self.layout_element_map.get_mut(&old_id) {
-                let id_copy = item.element_id.clone();
-                if let Some(ref mut callback) = item.on_unfocus_fn {
-                    callback(id_copy);
+                if item.focus.added_since.is_some() {
+                    item.focus.added_since = None;
+                    item.focus.removed_on_gen = self.generation;
                 }
             }
         }
@@ -4495,37 +4546,48 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
         // Fire on_focus on new element
         if new_id != 0 {
             if let Some(item) = self.layout_element_map.get_mut(&new_id) {
-                let id_copy = item.element_id.clone();
-                if let Some(ref mut callback) = item.on_focus_fn {
-                    callback(id_copy);
+                if item.focus.added_since.is_none() {
+                    item.focus.added_since = Some(self.current_time);
+                    item.focus.added_on_gen = self.generation;
                 }
             }
         }
     }
 
-    /// Fire the on_press callback for the element with the given u32 ID.
-    /// Used by screen reader action handling.
-    #[allow(dead_code)]
-    pub(crate) fn fire_press(&mut self, element_id: u32) {
+    fn add_state(&mut self, element_id: u32, get_state: impl Fn(&mut LayoutElementHashMapItem) -> &mut LayoutElementInteractionState) {
         if let Some(item) = self.layout_element_map.get_mut(&element_id) {
-            let id_copy = item.element_id.clone();
-            if let Some(ref mut callback) = item.on_press_fn {
-                callback(id_copy, PointerData::default());
+            let state = get_state(item);
+
+            if state.added_since.is_none() {
+                state.added_since = Some(self.current_time);
+                state.added_on_gen = self.generation;
             }
         }
     }
 
-    pub fn set_focus_callbacks(
-        &mut self,
-        on_focus: Option<Box<dyn FnMut(Id)>>,
-        on_unfocus: Option<Box<dyn FnMut(Id)>>,
-    ) {
-        let open_idx = self.get_open_layout_element();
-        let elem_id = self.layout_elements[open_idx].id;
-        if let Some(item) = self.layout_element_map.get_mut(&elem_id) {
-            item.on_focus_fn = on_focus;
-            item.on_unfocus_fn = on_unfocus;
+    fn remove_state(&mut self, element_id: u32, get_state: impl Fn(&mut LayoutElementHashMapItem) -> &mut LayoutElementInteractionState) {
+        if let Some(item) = self.layout_element_map.get_mut(&element_id) {
+            let state = get_state(item);
+
+            if state.added_since.is_some() {
+                state.added_since = None;
+                state.removed_on_gen = self.generation;
+            }
         }
+    }
+
+    fn set_pressed(&mut self, element_id: u32) {
+        self.add_state(element_id, |item| &mut item.press);
+    }
+
+    fn set_released(&mut self, element_id: u32) {
+        self.remove_state(element_id, |item| &mut item.press);
+    }
+
+    /// Fire the on_press callback for the element with the given u32 ID.
+    /// Used by screen reader action handling.
+    pub(crate) fn fire_press(&mut self, element_id: u32) {
+        self.set_pressed(element_id);
     }
 
     /// Sets text input callbacks for the currently open element.
@@ -5298,21 +5360,13 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
                 .map(|item| item.element_id.clone());
             if let Some(id) = id_copy {
                 self.pressed_element_ids = vec![id.clone()];
-                if let Some(item) = self.layout_element_map.get_mut(&self.focused_element_id) {
-                    if let Some(ref mut callback) = item.on_press_fn {
-                        callback(id, PointerData::default());
-                    }
-                }
+                self.set_pressed(self.focused_element_id);
             }
         }
         if released {
             let pressed = std::mem::take(&mut self.pressed_element_ids);
             for eid in pressed.iter() {
-                if let Some(item) = self.layout_element_map.get_mut(&eid.id) {
-                    if let Some(ref mut callback) = item.on_release_fn {
-                        callback(eid.clone(), PointerData::default());
-                    }
-                }
+                self.set_released(eid.id);
             }
         }
     }
