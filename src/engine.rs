@@ -356,12 +356,31 @@ struct LayoutElement {
     floating_children_count: u16,
 }
 
+#[derive(Default, Clone)]
+pub struct LayoutElementInteractionState {
+    pub added_since: Option<f64>,
+    pub just_added: bool,
+    pub just_removed: bool,
+}
+
+impl LayoutElementInteractionState {
+    pub fn has(&self) -> bool {
+        self.added_since.is_some()
+    }
+}
+
+const DEFAULT_STATE: &LayoutElementInteractionState = &LayoutElementInteractionState {
+    added_since: None,
+    just_added: false,
+    just_removed: false,
+};
+
 #[derive(Default)]
 struct LayoutElementHashMapItem {
     bounding_box: BoundingBox,
     element_id: Id,
     layout_element_index: i32,
-    on_hover_fn: Option<Box<dyn FnMut(Id, PointerData)>>,
+    hover: LayoutElementInteractionState,
     on_press_fn: Option<Box<dyn FnMut(Id, PointerData)>>,
     on_release_fn: Option<Box<dyn FnMut(Id, PointerData)>>,
     on_focus_fn: Option<Box<dyn FnMut(Id)>>,
@@ -381,7 +400,7 @@ impl Clone for LayoutElementHashMapItem {
             bounding_box: self.bounding_box,
             element_id: self.element_id.clone(),
             layout_element_index: self.layout_element_index,
-            on_hover_fn: None, // Callbacks are not cloneable
+            hover: self.hover.clone(),
             on_press_fn: None,
             on_release_fn: None,
             on_focus_fn: None,
@@ -903,11 +922,14 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
             std::collections::hash_map::Entry::Occupied(mut entry) => {
                 let item = entry.get_mut();
                 if item.generation <= gen {
+                    if gen - item.generation > 1 {
+                        item.hover = Default::default();
+                    }
+
                     item.element_id = element_id.clone();
                     item.generation = gen + 1;
                     item.layout_element_index = layout_element_index;
                     item.collision = false;
-                    item.on_hover_fn = None;
                     item.on_press_fn = None;
                     item.on_release_fn = None;
                     item.on_focus_fn = None;
@@ -927,7 +949,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
                     layout_element_index,
                     generation: gen + 1,
                     bounding_box: BoundingBox::default(),
-                    on_hover_fn: None,
+                    hover: Default::default(),
                     on_press_fn: None,
                     on_release_fn: None,
                     on_focus_fn: None,
@@ -4040,9 +4062,9 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
 
                 // Copy data from map to avoid borrow issues with mutable access later
                 let map_data = self.layout_element_map.get(&elem_id).map(|item| {
-                    (item.bounding_box, item.element_id.clone(), item.on_hover_fn.is_some())
+                    (item.bounding_box, item.element_id.clone())
                 });
-                if let Some((raw_box, elem_id_copy, has_hover)) = map_data {
+                if let Some((raw_box, elem_id_copy)) = map_data {
                     let mut elem_box = raw_box;
                     elem_box.x -= root.pointer_offset.x;
                     elem_box.y -= root.pointer_offset.y;
@@ -4063,16 +4085,23 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
 
                     if point_is_inside_rect(position, elem_box) && clip_ok {
                         // Call hover callbacks
-                        if has_hover {
-                            let pointer_data = self.pointer_info;
-                            if let Some(item) = self.layout_element_map.get_mut(&elem_id) {
-                                if let Some(ref mut callback) = item.on_hover_fn {
-                                    callback(elem_id_copy.clone(), pointer_data);
-                                }
+                        if let Some(item) = self.layout_element_map.get_mut(&elem_id) {
+                            if item.hover.added_since.is_none() {
+                                item.hover.added_since = Some(self.current_time);
+                                item.hover.just_added = true;
+                            } else {
+                                item.hover.just_added = false;
                             }
                         }
                         self.pointer_over_ids.push(elem_id_copy);
                         found = true;
+                    } else if let Some(item) = self.layout_element_map.get_mut(&elem_id) {
+                        if item.hover.added_since.is_some() {
+                            item.hover.added_since = None;
+                            item.hover.just_removed = true;
+                        } else {
+                            item.hover.just_removed = false;
+                        }
                     }
 
                     if self.element_has_config(current_idx, ElementConfigType::Text) {
@@ -4373,6 +4402,13 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
         }
     }
 
+    pub fn get_hover_state(&self, elem_id: u32) -> &LayoutElementInteractionState {
+        self.layout_element_map
+            .get(&elem_id)
+            .map(|item| &item.hover)
+            .unwrap_or(DEFAULT_STATE)
+    }
+
     pub fn is_element_hovered(&self, elem_id: u32) -> bool {
         self.pointer_over_ids.iter().any(|eid| eid.id == elem_id)
     }
@@ -4381,14 +4417,6 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
         let open_idx = self.get_open_layout_element();
         let elem_id = self.layout_elements[open_idx].id;
         self.is_element_hovered(elem_id)
-    }
-
-    pub fn on_hover(&mut self, callback: Box<dyn FnMut(Id, PointerData)>) {
-        let open_idx = self.get_open_layout_element();
-        let elem_id = self.layout_elements[open_idx].id;
-        if let Some(item) = self.layout_element_map.get_mut(&elem_id) {
-            item.on_hover_fn = Some(callback);
-        }
     }
 
     pub fn pressed(&self) -> bool {

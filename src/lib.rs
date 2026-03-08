@@ -24,7 +24,7 @@ pub mod built_in_shaders;
 pub mod net;
 pub mod prelude;
 
-use std::u32;
+use std::{u32};
 
 use id::Id;
 use macroquad::miniquad::{CursorIcon, window::set_mouse_cursor};
@@ -34,7 +34,7 @@ use text::TextConfig;
 
 pub use color::Color;
 
-use crate::elements::ElementStyle;
+use crate::{elements::ElementStyle, engine::LayoutElementInteractionState};
 
 #[allow(dead_code)]
 pub struct Ply<CustomElementData: Clone + Default + std::fmt::Debug = ()> {
@@ -65,7 +65,6 @@ pub struct ElementBuilder<'ply, CustomElementData: Clone + Default + std::fmt::D
     ply: &'ply mut Ply<CustomElementData>,
     inner: engine::ElementDeclaration<CustomElementData>,
     id: Id,
-    on_hover_fn: Option<Box<dyn FnMut(Id, engine::PointerData) + 'static>>,
     on_press_fn: Option<Box<dyn FnMut(Id, engine::PointerData) + 'static>>,
     on_release_fn: Option<Box<dyn FnMut(Id, engine::PointerData) + 'static>>,
     on_focus_fn: Option<Box<dyn FnMut(Id) + 'static>>,
@@ -317,6 +316,29 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
         self.ply.context.is_element_hovered(self.id.id)
     }
 
+    #[inline]
+    pub fn get_hover(&self) -> LayoutElementInteractionState {
+        self.ply.context.get_hover_state(self.id.id).clone()
+    }
+
+    #[inline]
+    pub fn on_hover(self, callback: impl FnOnce(Self) -> Self) -> Self
+    {
+        if self.ply.context.get_hover_state(self.id.id).just_added  {
+            return callback(self);
+        }
+        self
+    }
+
+    #[inline]
+    pub fn on_unhover(self, callback: impl FnOnce(Self) -> Self) -> Self
+    {
+        if self.ply.context.get_hover_state(self.id.id).just_removed  {
+            return callback(self);
+        }
+        self
+    }
+
     /// Calls the specified function if the element is hovered.
     #[inline]
     pub fn if_hovered(self, callback: impl FnOnce(Self) -> Self) -> Self {
@@ -324,16 +346,6 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
             return callback(self);
         }
 
-        self
-    }
-
-    /// Registers a callback invoked every frame the pointer is over this element.
-    #[inline]
-    pub fn on_hover<F>(mut self, callback: F) -> Self
-    where
-        F: FnMut(Id, engine::PointerData) + 'static,
-    {
-        self.on_hover_fn = Some(Box::new(callback));
         self
     }
 
@@ -423,10 +435,10 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     }
 
     /// Finalizes the element with children defined in a closure.
-    pub fn children(self, f: impl FnOnce(&mut Ui<'_, CustomElementData>)) -> Id {
+    pub fn children(&mut self, f: impl FnOnce(&mut Ui<'_, CustomElementData>)) -> Id {
         let ElementBuilder {
             ply, inner, id,
-            on_hover_fn, on_press_fn, on_release_fn, on_focus_fn, on_unfocus_fn,
+            on_press_fn, on_release_fn, on_focus_fn, on_unfocus_fn,
             text_input_on_changed_fn, text_input_on_submit_fn,
         } = self;
         // if let Some(ref id) = id {
@@ -438,17 +450,14 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
         ply.context.configure_open_element(&inner);
         let element_id = ply.context.get_open_element_id();
 
-        if let Some(hover_fn) = on_hover_fn {
-            ply.context.on_hover(hover_fn);
-        }
         if on_press_fn.is_some() || on_release_fn.is_some() {
-            ply.context.set_press_callbacks(on_press_fn, on_release_fn);
+            ply.context.set_press_callbacks(on_press_fn.take(), on_release_fn.take());
         }
         if on_focus_fn.is_some() || on_unfocus_fn.is_some() {
-            ply.context.set_focus_callbacks(on_focus_fn, on_unfocus_fn);
+            ply.context.set_focus_callbacks(on_focus_fn.take(), on_unfocus_fn.take());
         }
         if text_input_on_changed_fn.is_some() || text_input_on_submit_fn.is_some() {
-            ply.context.set_text_input_callbacks(text_input_on_changed_fn, text_input_on_submit_fn);
+            ply.context.set_text_input_callbacks(text_input_on_changed_fn.take(), text_input_on_submit_fn.take());
         }
 
         ply.context.seed_stack.push(id.id);
@@ -463,10 +472,16 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     }
 
     /// Finalizes the element with no children.
-    pub fn empty(self) -> Id {
+    pub fn empty(&mut self) -> Id {
         self.children(|_| {})
     }
 }
+
+// impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug> Drop for ElementBuilder<'ply, CustomElementData> {
+//     fn drop(&mut self) {
+//         self.empty();
+//     }
+// }
 
 impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug> core::ops::Deref
     for Ui<'ply, CustomElementData>
@@ -494,7 +509,6 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug> Ui<'ply, Custom
             id: self.ply.context.generate_id(),
             ply: &mut *self.ply,
             inner: engine::ElementDeclaration::default(),
-            on_hover_fn: None,
             on_press_fn: None,
             on_release_fn: None,
             on_focus_fn: None,
