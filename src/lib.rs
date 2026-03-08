@@ -24,7 +24,7 @@ pub mod built_in_shaders;
 pub mod net;
 pub mod prelude;
 
-use std::{u32};
+use std::{fmt::Debug, mem::take, u32};
 
 use id::Id;
 use macroquad::miniquad::{CursorIcon, window::set_mouse_cursor};
@@ -56,7 +56,28 @@ pub struct Ply<CustomElementData: Clone + Default + std::fmt::Debug = ()> {
 }
 
 pub struct Ui<'ply, CustomElementData: Clone + Default + std::fmt::Debug = ()> {
-    ply: &'ply mut Ply<CustomElementData>,
+    content: UiContent<'ply, CustomElementData>,
+}
+
+#[derive(Default)]
+pub enum UiContent<'ply, CustomElementData: Clone + Default + Debug> {
+    #[default]
+    None,
+    Ply(&'ply mut Ply<CustomElementData>),
+    Element(ElementBuilder<'ply, CustomElementData>),
+}
+
+impl<'ply, CustomElementData: Clone + Default + Debug> UiContent<'ply, CustomElementData> {
+    fn take(&mut self) -> &'ply mut Ply<CustomElementData> {
+        match take(self) {
+            UiContent::None => unreachable!(),
+            UiContent::Ply(ply) => ply,
+            UiContent::Element(mut element) => {
+                element.empty();
+                element.ply
+            },
+        }
+    }
 }
 
 /// Builder for creating elements with closure-based syntax.
@@ -64,6 +85,7 @@ pub struct Ui<'ply, CustomElementData: Clone + Default + std::fmt::Debug = ()> {
 #[must_use]
 pub struct ElementBuilder<'ply, CustomElementData: Clone + Default + std::fmt::Debug = ()> {
     id: Id,
+    finished: bool,
     ply: &'ply mut Ply<CustomElementData>,
     inner: engine::ElementDeclaration<CustomElementData>,
     text_input_on_changed_fn: Option<Box<dyn FnMut(&str) + 'static>>,
@@ -397,11 +419,18 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     }
 
     /// Finalizes the element with children defined in a closure.
-    pub fn children(self, f: impl FnOnce(&mut Ui<'_, CustomElementData>)) -> Id {
+    pub fn children(&mut self, f: impl FnOnce(&mut Ui<'_, CustomElementData>)) -> Id {
+        if self.finished {
+            return self.id.clone();
+        }
+
         let ElementBuilder {
-            ply, inner, id,
+            ply, inner, id, finished,
             text_input_on_changed_fn, text_input_on_submit_fn,
         } = self;
+
+        *finished = true;
+
         // if let Some(ref id) = id {
         //     ply.context.open_element_with_id(id);
         // } else {
@@ -412,22 +441,23 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
         let element_id = ply.context.get_open_element_id();
 
         if text_input_on_changed_fn.is_some() || text_input_on_submit_fn.is_some() {
-            ply.context.set_text_input_callbacks(text_input_on_changed_fn, text_input_on_submit_fn);
+            ply.context.set_text_input_callbacks(text_input_on_changed_fn.take(), text_input_on_submit_fn.take());
         }
 
         ply.context.seed_stack.push(id.id);
 
-        let mut ui = Ui { ply };
+        let mut ui = Ui { content: UiContent::Ply(ply) };
         f(&mut ui);
-        ui.ply.context.close_element();
-
+        
+        let ply = ui.content.take();
+        ply.context.close_element();
         ply.context.seed_stack.pop();
 
         Id { id: element_id, ..Default::default() }
     }
 
     /// Finalizes the element with no children.
-    pub fn empty(self) -> Id {
+    pub(crate) fn empty(&mut self) -> Id {
         self.children(|_| {})
     }
 }
@@ -444,7 +474,7 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug> core::ops::Dere
     type Target = Ply<CustomElementData>;
 
     fn deref(&self) -> &Self::Target {
-        self.ply
+        self.ply()
     }
 }
 
@@ -452,50 +482,78 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug> core::ops::Dere
     for Ui<'ply, CustomElementData>
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.ply
+        self.ply_mut()
     }
 }
 
 impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug> Ui<'ply, CustomElementData> {
     /// Creates a new element builder for configuring and adding an element.
     /// Finalize with `.children(|ui| {...})` or `.empty()`.
-    pub fn element(&mut self) -> ElementBuilder<'_, CustomElementData> {
-        ElementBuilder {
-            id: self.ply.context.generate_id(),
-            ply: &mut *self.ply,
+    pub fn element(&mut self) -> &mut ElementBuilder<'ply, CustomElementData> {
+        let ply = self.content.take();
+
+        let elt = ElementBuilder {
+            id: ply.context.generate_id(),
+            finished: false,
+            ply: ply,
             inner: engine::ElementDeclaration::default(),
             text_input_on_changed_fn: None,
             text_input_on_submit_fn: None,
+        };
+
+        self.content = UiContent::Element(elt);
+
+        if let UiContent::Element(ref mut elt) = self.content {
+            return elt;
         }
+
+        unreachable!()
     }
 
     /// Adds a text element to the current open element or to the root layout.
     pub fn text(&mut self, text: &str, config_fn: impl FnOnce(&mut TextConfig) -> &mut TextConfig) {
         let mut config = TextConfig::new();
         config_fn(&mut config);
-        let text_config_index = self.ply.context.store_text_element_config(config);
-        self.ply.context.open_text_element(text, text_config_index);
+        let ply = self.ply_mut();
+        let text_config_index = ply.context.store_text_element_config(config);
+        ply.context.open_text_element(text, text_config_index);
     }
 
     /// Returns the current scroll offset of the open scroll container.
     pub fn scroll_offset(&self) -> Vector2 {
-        self.ply.context.get_scroll_offset()
+        self.ply().context.get_scroll_offset()
     }
 
     /// Returns if the current element you are creating is hovered
     pub fn hovered(&self) -> bool {
-        self.ply.context.hovered()
+        self.ply().context.hovered()
     }
 
     /// Returns if the current element you are creating is pressed
     /// (pointer held down on it, or Enter/Space held on focused element)
     pub fn pressed(&self) -> bool {
-        self.ply.context.pressed()
+        self.ply().context.pressed()
     }
 
     /// Returns if the current element you are creating has focus.
     pub fn focused(&self) -> bool {
-        self.ply.context.focused()
+        self.ply().context.focused()
+    }
+
+    fn ply(&self) -> &Ply<CustomElementData> {
+        match &self.content {
+            UiContent::None => unreachable!(),
+            UiContent::Ply(ply) => ply,
+            UiContent::Element(element) => element.ply,
+        }
+    }
+
+    fn ply_mut(&mut self) -> &mut Ply<CustomElementData> {
+        match &mut self.content {
+            UiContent::None => unreachable!(),
+            UiContent::Ply(ply) => ply,
+            UiContent::Element(element) => element.ply,
+        }
     }
 }
 
@@ -810,7 +868,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> Ply<CustomElementData
 
         self.context.begin_layout();
         Ui {
-            ply: self,
+            content: UiContent::Ply(self),
         }
     }
 
@@ -1065,7 +1123,7 @@ extern "C" {
 }
 
 #[cfg(test)]
-#[allow(unused_variables)]
+#[allow(unused_variables, unused_mut)]
 mod tests {
     use super::*;
     use color::Color;
