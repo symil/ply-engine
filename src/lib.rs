@@ -308,6 +308,14 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
         self
     }
 
+    pub fn if_hovered(self, callback: impl FnOnce(Self) -> Self) -> Self {
+        if self.ply.context.hovered() {
+            return callback(self);
+        }
+
+        self
+    }
+
     /// Registers a callback invoked every frame the pointer is over this element.
     #[inline]
     pub fn on_hover<F>(mut self, callback: F) -> Self

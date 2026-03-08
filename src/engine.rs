@@ -1,6 +1,7 @@
 //! Pure Rust implementation of the Ply layout engine.
 //! A UI layout engine inspired by Clay.
 
+use macroquad::miniquad::CursorIcon;
 use rustc_hash::FxHashMap;
 
 use crate::align::{AlignX, AlignY};
@@ -578,6 +579,7 @@ pub struct PlyContext<CustomElementData: Clone + Default + std::fmt::Debug = ()>
 
     // Pointer info
     pointer_info: PointerData,
+    cursor_icon: CursorIcon,
     pub layout_dimensions: Dimensions,
 
     // Dynamic element tracking
@@ -807,6 +809,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
             generation: 0,
             boolean_warnings: BooleanWarnings::default(),
             pointer_info: PointerData::default(),
+            cursor_icon: CursorIcon::Default,
             layout_dimensions: dimensions,
             dynamic_element_index: 0,
             measure_text_fn: None,
