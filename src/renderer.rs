@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use macroquad::prelude::*;
 use macroquad::miniquad::{BlendState, BlendFactor, BlendValue, Equation};
 use crate::prelude::BorderPosition;
@@ -2116,16 +2118,16 @@ pub async fn render<CustomElementData: Clone + Default + std::fmt::Debug>(
                 let cr = &config.corner_radii;
                 let color = ply_to_macroquad_color(&config.color);
                 let s = match config.position {
-                    BorderPosition::Outside => -0.5,
-                    BorderPosition::Middle => 0.,
-                    BorderPosition::Inside => 0.5,
+                    BorderPosition::Outside => 1.,
+                    BorderPosition::Middle => 0.5,
+                    BorderPosition::Inside => 0.0,
                 };
 
                 if cr.top_left == 0.0 && cr.top_right == 0.0 && cr.bottom_left == 0.0 && cr.bottom_right == 0.0 
                     && bw.left == bw.right && bw.left == bw.top && bw.left == bw.bottom
                 {
                     let border_width = (bw.left as f32) * 2.;
-                    let offset = border_width * (0.25 - s / 2.);
+                    let offset = border_width * s / 2.;
 
                     draw_rectangle_lines(
                         bb.x - offset,
@@ -2136,6 +2138,13 @@ pub async fn render<CustomElementData: Clone + Default + std::fmt::Debug>(
                         color
                     );
                 } else {
+                    let get_sides = |corner: f32| {
+                        (std::f32::consts::PI * corner / (2.0 * PIXELS_PER_POINT)).max(5.0) as usize
+                    };
+                    let v = |x: f32, y: f32| {
+                        Vertex::new(x, y, 0., 0., 0., color)
+                    };
+
                     let top = bw.top as f32;
                     let left = bw.left as f32;
                     let bottom = bw.bottom as f32;
@@ -2144,63 +2153,66 @@ pub async fn render<CustomElementData: Clone + Default + std::fmt::Debug>(
                     let tr_r = cr.top_right;
                     let bl_r = cr.bottom_left;
                     let br_r = cr.bottom_right;
+                    let tl_sides = get_sides(tl_r);
+                    let tr_sides = get_sides(tr_r);
+                    let bl_sides = get_sides(bl_r);
+                    let br_sides = get_sides(br_r);
+                    let side_count = tl_sides + tr_sides + bl_sides + br_sides;
 
-                    let x1 = bb.x + left * s;
-                    let x2 = bb.x + bb.width - right * s;
-                    let y1 = bb.y + top * s;
-                    let y2 = bb.y + bb.height - bottom * s;
-                    let top_x1 = x1 - left / 2. + tl_r;
-                    let top_x2 = x2 + right / 2. - tr_r;
-                    let bottom_x1 = x1 - left / 2. + bl_r;
-                    let bottom_x2 = x2 + right / 2. - br_r;
-                    let left_y1 = y1 - top / 2. + tl_r;
-                    let left_y2 = y2 + bottom / 2. - bl_r;
-                    let right_y1 = y1 - top / 2. + tr_r;
-                    let right_y2 = y2 + bottom / 2. - br_r;
+                    let x1 = bb.x - left * s;
+                    let x2 = bb.x + bb.width + right * s;
+                    let y1 = bb.y - top * s;
+                    let y2 = bb.y + bb.height + bottom * s;
 
-                    // Top edge
-                    draw_line(top_x1, y1, top_x2, y1, top, color);
+                    let mut vertices = Vec::<Vertex>::with_capacity(16 + side_count * 4);
+                    let mut indices = Vec::<u16>::with_capacity(24 + side_count * 6);
 
-                    // Bottom edge
-                    draw_line(bottom_x1, y2, bottom_x2, y2, bottom, color);
+                    vertices.extend([
+                        // Top edge
+                        v(x1 + tl_r, y1), v(x2 - tr_r, y1), v(x1 + tl_r, y1 + top), v(x2 - tr_r, y1 + top),
+                        // Bottom edge
+                        v(x1 + bl_r, y2), v(x2 - br_r, y2), v(x1 + bl_r, y2 - bottom), v(x2 - br_r, y2 - bottom),
+                        // Left edge
+                        v(x1, y1 + tl_r), v(x1, y2 - bl_r), v(x1 + left, y1 + tl_r), v(x1 + left, y2 - bl_r), 
+                        // Right edge
+                        v(x2, y1 + tr_r), v(x2, y2 - br_r), v(x2 - right, y1 + tr_r), v(x2 - right, y2 - br_r), 
+                    ]);
 
-                    // Left edge
-                    draw_line(x1, left_y1, x1, left_y2, left, color);
 
-                    // Right edge
-                    draw_line(x2, right_y1, x2, right_y2, right, color);
-
-                    let get_points = |corner: f32, w1: f32, w2: f32| {
-                        ((std::f32::consts::PI * (corner + w1.max(w2))) / 2.0 / PIXELS_PER_POINT).max(5.0) as u8
-                    };
-
-                    // Top left corner
-                    if tl_r > 0. {
-                        let points = get_points(tl_r, top, left);
-                        fill_arc(top_x1, left_y1, points, tl_r, 180., 90., color); // Outer rounded corner
-                        draw_arc(top_x1 + left, left_y1 + top, points, tl_r, 180., tl_r, 90., color); // Inner rounded corner
+                    for l in [0, 4, 8, 12] {
+                        indices.extend([l, l + 1, l + 2, l + 1, l + 2, l + 3]);
                     }
 
-                    // Top right corner
-                    if tr_r > 0. {
-                        let points = get_points(tr_r, top, right);
-                        fill_arc(top_x2, right_y1, points, tr_r, 270., 90., color);
-                        draw_arc(top_x2 - right, right_y1 + top, points, tr_r, 270., tr_r, 90., color);
+                    let corners = [
+                        (tl_sides, PI, tl_r, x1 + tl_r, y1 + tl_r, left, top),
+                        (tr_sides, PI * 1.5, tr_r, x2 - tr_r, y1 + tr_r, -right, top),
+                        (bl_sides, PI * 0.5, bl_r, x1 + bl_r, y2 - bl_r, left, -bottom),
+                        (br_sides, 0., br_r, x2 - br_r, y2 - bl_r, -right, -bottom),
+                    ];
+
+                    for (sides, start, r, x1, y1, dx, dy) in corners {
+                        let step = (PI / 2.) / (sides as f32);
+
+                        for i in 0..sides {
+                            let i = i as f32;
+                            let a1 = start + i * step;
+                            let a2 = a1 + step;
+                            let x2 = x1 + dx;
+                            let y2 = y1 + dy;
+                            let l = vertices.len() as u16;
+
+                            indices.extend([l, l + 1, l + 2, l + 1, l + 2, l + 3]);
+
+                            vertices.extend([
+                                v(x1 + a1.cos() * r, y1 + a1.sin() * r),
+                                v(x1 + a2.cos() * r, y1 + a2.sin() * r),
+                                v(x2 + a1.cos() * r, y2 + a1.sin() * r),
+                                v(x2 + a2.cos() * r, y2 + a2.sin() * r),
+                            ]);
+                        }
                     }
 
-                    // Bottom left corner
-                    if bl_r > 0. {
-                        let points = get_points(bl_r, bottom, left);
-                        fill_arc(bottom_x1, left_y2, points, bl_r, 90., 90., color);
-                        draw_arc(bottom_x1 + left, left_y2 - bottom, points, bl_r, 90., bl_r, 90., color);
-                    }
-
-                    // Bottom right corner
-                    if br_r > 0. {
-                        let points = get_points(br_r, bottom, right);
-                        fill_arc(bottom_x2, right_y2, points, br_r, 0., 90., color);
-                        draw_arc(bottom_x2 - right, right_y2 - bottom, points, br_r, 0., br_r, 90., color);
-                    }
+                    draw_mesh(&Mesh { vertices, indices, texture: None });
                 }
             }
             RenderCommandConfig::ScissorStart() => {
