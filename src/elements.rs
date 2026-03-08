@@ -175,6 +175,18 @@ pub struct BorderBuilder {
     pub(crate) config: engine::BorderConfig,
 }
 
+/// Defines the position of the border relative to the bounding box.
+#[derive(Debug, Clone, Copy, Default)]
+pub enum BorderPosition {
+    /// Fully outside the bounding box.
+    #[default]
+    Outside,
+    /// Half inside, half outside the bounding box.
+    Middle,
+    /// Fully inside the bounding box.
+    Inside,
+}
+
 impl BorderBuilder {
     /// Sets the border color.
     #[inline]
@@ -230,7 +242,7 @@ impl BorderBuilder {
 
     /// Sets the position of the border relative to the bounding box.
     #[inline]
-    pub fn position(&mut self, position: impl Into<engine::BorderPosition>) -> &mut Self {
+    pub fn position(&mut self, position: impl Into<BorderPosition>) -> &mut Self {
         self.config.position = position.into();
         self
     }

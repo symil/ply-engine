@@ -5,6 +5,7 @@ use rustc_hash::FxHashMap;
 
 use crate::align::{AlignX, AlignY};
 use crate::color::Color;
+use crate::prelude::BorderPosition;
 use crate::renderer::ImageSource;
 use crate::shaders::ShaderConfig;
 use crate::elements::{
@@ -249,18 +250,6 @@ impl BorderWidth {
             && self.bottom == 0
             && self.between_children == 0
     }
-}
-
-/// Defines the position of the border relative to the bounding box.
-#[derive(Debug, Clone, Copy, Default)]
-pub enum BorderPosition {
-    // Fully outside the bounding box.
-    #[default]
-    Outside,
-    // Half inside, half outside the bounding box.
-    Middle,
-    // Fully inside the bounding box.
-    Inside,
 }
 
 #[derive(Debug, Clone, Copy, Default)]

@@ -1,4 +1,4 @@
-use crate::{color::Color, engine::{self, ShapeRotationConfig, VisualRotationConfig}, math::BoundingBox, renderer::ImageSource, shaders::ShaderConfig};
+use crate::{color::Color, engine::{self, ShapeRotationConfig, VisualRotationConfig}, math::BoundingBox, prelude::BorderPosition, renderer::ImageSource, shaders::ShaderConfig};
 
 /// Represents a rectangle with a specified color and corner radii.
 #[derive(Debug, Clone)]
@@ -64,7 +64,7 @@ pub struct Border {
     /// The width of the border on each side.
     pub width: BorderWidth,
     /// The position of the border relative to the bounding box.
-    pub position: engine::BorderPosition,
+    pub position: BorderPosition,
 }
 
 /// Represents an image with defined dimensions and data.

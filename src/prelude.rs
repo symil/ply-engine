@@ -24,7 +24,7 @@ pub use crate::align::AlignX::{self, *};
 pub use crate::align::AlignY::{self, *};
 
 // BorderPosition — globbed
-pub use crate::engine::BorderPosition::{self, *};
+pub use crate::elements::BorderPosition::{self, *};
 
 // LayoutDirection — globbed
 pub use crate::layout::LayoutDirection::{self, *};
