@@ -1,4 +1,4 @@
-use crate::{color::Color, engine::{self, ShapeRotationConfig, VisualRotationConfig}, math::BoundingBox, prelude::BorderPosition, renderer::ImageSource, shaders::ShaderConfig};
+use crate::{color::Color, engine::{self, ShapeRotationConfig, VisualRotationConfig}, math::BoundingBox, elements::BorderPosition, renderer::ImageSource, shaders::ShaderConfig};
 
 /// Represents a rectangle with a specified color and corner radii.
 #[derive(Debug, Clone)]

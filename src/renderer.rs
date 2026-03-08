@@ -2,8 +2,7 @@ use std::f32::consts::PI;
 
 use macroquad::prelude::*;
 use macroquad::miniquad::{BlendState, BlendFactor, BlendValue, Equation};
-use crate::prelude::BorderPosition;
-use crate::{math::BoundingBox, render_commands::{CornerRadii, RenderCommand, RenderCommandConfig}, shaders::{ShaderConfig, ShaderUniformValue}};
+use crate::{math::BoundingBox, render_commands::{CornerRadii, RenderCommand, RenderCommandConfig}, shaders::{ShaderConfig, ShaderUniformValue}, elements::BorderPosition};
 
 #[cfg(feature = "text-styling")]
 use crate::text_styling::{render_styled_text, StyledSegment};

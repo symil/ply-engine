@@ -5,7 +5,7 @@ use rustc_hash::FxHashMap;
 
 use crate::align::{AlignX, AlignY};
 use crate::color::Color;
-use crate::prelude::BorderPosition;
+use crate::elements::BorderPosition;
 use crate::renderer::ImageSource;
 use crate::shaders::ShaderConfig;
 use crate::elements::{
