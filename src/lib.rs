@@ -24,6 +24,8 @@ pub mod built_in_shaders;
 pub mod net;
 pub mod prelude;
 
+use std::u32;
+
 use id::Id;
 use math::{Dimensions, Vector2};
 use render_commands::RenderCommand;
@@ -61,7 +63,7 @@ pub struct Ui<'ply, CustomElementData: Clone + Default + std::fmt::Debug = ()> {
 pub struct ElementBuilder<'ply, CustomElementData: Clone + Default + std::fmt::Debug = ()> {
     ply: &'ply mut Ply<CustomElementData>,
     inner: engine::ElementDeclaration<CustomElementData>,
-    id: Option<Id>,
+    id: Id,
     on_hover_fn: Option<Box<dyn FnMut(Id, engine::PointerData) + 'static>>,
     on_press_fn: Option<Box<dyn FnMut(Id, engine::PointerData) + 'static>>,
     on_release_fn: Option<Box<dyn FnMut(Id, engine::PointerData) + 'static>>,
@@ -108,7 +110,7 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     /// Accepts an `Id` or a `&'static str` label.
     #[inline]
     pub fn id(mut self, id: impl Into<Id>) -> Self {
-        self.id = Some(id.into());
+        self.id = id.into();
         self
     }
 
@@ -308,8 +310,16 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
         self
     }
 
+    /// Indicates if the element is hovered.
+    #[inline]
+    pub fn hovered(&self) -> bool {
+        self.ply.context.is_element_hovered(self.id.id)
+    }
+
+    /// Calls the specified function if the element is hovered.
+    #[inline]
     pub fn if_hovered(self, callback: impl FnOnce(Self) -> Self) -> Self {
-        if self.ply.context.hovered() {
+        if self.hovered() {
             return callback(self);
         }
 
@@ -413,11 +423,12 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
             on_hover_fn, on_press_fn, on_release_fn, on_focus_fn, on_unfocus_fn,
             text_input_on_changed_fn, text_input_on_submit_fn,
         } = self;
-        if let Some(ref id) = id {
-            ply.context.open_element_with_id(id);
-        } else {
-            ply.context.open_element();
-        }
+        // if let Some(ref id) = id {
+        //     ply.context.open_element_with_id(id);
+        // } else {
+        //     ply.context.open_element();
+        // }
+        ply.context.open_element_with_id(&id);
         ply.context.configure_open_element(&inner);
         let element_id = ply.context.get_open_element_id();
 
@@ -434,9 +445,13 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
             ply.context.set_text_input_callbacks(text_input_on_changed_fn, text_input_on_submit_fn);
         }
 
+        ply.context.seed_stack.push(id.id);
+
         let mut ui = Ui { ply };
         f(&mut ui);
         ui.ply.context.close_element();
+
+        ply.context.seed_stack.pop();
 
         Id { id: element_id, ..Default::default() }
     }
@@ -470,9 +485,9 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug> Ui<'ply, Custom
     /// Finalize with `.children(|ui| {...})` or `.empty()`.
     pub fn element(&mut self) -> ElementBuilder<'_, CustomElementData> {
         ElementBuilder {
+            id: self.ply.context.generate_id(),
             ply: &mut *self.ply,
             inner: engine::ElementDeclaration::default(),
-            id: None,
             on_hover_fn: None,
             on_press_fn: None,
             on_release_fn: None,
@@ -528,6 +543,9 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> Ply<CustomElementData
             self.context.current_time = macroquad::prelude::get_time();
             self.context.frame_delta_time = macroquad::prelude::get_frame_time();
         }
+
+        self.context.seed_stack.clear();
+        self.context.seed_stack.push(0);
 
         // Update blink timers for text inputs
         self.context.update_text_input_blink_timers();

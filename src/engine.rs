@@ -588,6 +588,9 @@ pub struct PlyContext<CustomElementData: Clone + Default + std::fmt::Debug = ()>
     // Measure text callback
     measure_text_fn: Option<Box<dyn Fn(&str, &TextConfig) -> Dimensions>>,
 
+    // Anonymous ID generation
+    pub(crate) seed_stack: Vec<u32>,
+
     // Layout elements
     layout_elements: Vec<LayoutElement>,
     render_commands: Vec<InternalRenderCommand<CustomElementData>>,
@@ -808,6 +811,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
             debug_selected_element_id: 0,
             generation: 0,
             boolean_warnings: BooleanWarnings::default(),
+            seed_stack: Vec::new(),
             pointer_info: PointerData::default(),
             cursor_icon: CursorIcon::Default,
             layout_dimensions: dimensions,
@@ -937,6 +941,15 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
                 });
             }
         }
+    }
+
+    pub fn generate_id(&mut self) -> Id {
+        let len = self.seed_stack.len();
+        let id = hash_number(len as u32, self.seed_stack[len - 1]);
+
+        self.seed_stack[len - 1] = id.id;
+
+        id
     }
 
     fn generate_id_for_anonymous_element(&mut self, open_element_index: usize) -> Id {
@@ -4360,10 +4373,14 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
         }
     }
 
+    pub fn is_element_hovered(&self, elem_id: u32) -> bool {
+        self.pointer_over_ids.iter().any(|eid| eid.id == elem_id)
+    }
+
     pub fn hovered(&self) -> bool {
         let open_idx = self.get_open_layout_element();
         let elem_id = self.layout_elements[open_idx].id;
-        self.pointer_over_ids.iter().any(|eid| eid.id == elem_id)
+        self.is_element_hovered(elem_id)
     }
 
     pub fn on_hover(&mut self, callback: Box<dyn FnMut(Id, PointerData)>) {
