@@ -46,9 +46,9 @@ pub struct TextEditState {
     /// Vertical scroll offset (pixels) for multiline text inputs.
     pub scroll_offset_y: f32,
     /// Timer for cursor blink animation (seconds).
-    pub cursor_blink_timer: f64,
+    pub cursor_blink_timer: f32,
     /// Timestamp of last click (for double-click detection).
-    pub last_click_time: f64,
+    pub last_click_time: f32,
     /// Element ID of last click (for double-click detection).
     pub last_click_element: u32,
     /// Saved visual column for vertical (up/down) navigation.

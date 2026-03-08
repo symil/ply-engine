@@ -1,40 +1,40 @@
 pub mod accessibility;
-#[cfg(all(feature = "a11y", target_arch = "wasm32"))]
-pub mod accessibility_web;
 #[cfg(all(feature = "a11y", not(target_arch = "wasm32")))]
 pub mod accessibility_native;
+#[cfg(all(feature = "a11y", target_arch = "wasm32"))]
+pub mod accessibility_web;
 pub mod align;
+#[cfg(feature = "built-in-shaders")]
+pub mod built_in_shaders;
 pub mod color;
 pub mod elements;
 pub mod engine;
 pub mod id;
 pub mod layout;
 pub mod math;
+#[cfg(feature = "net")]
+pub mod net;
+pub mod prelude;
 pub mod render_commands;
+pub mod renderer;
 pub mod shader_build;
 pub mod shaders;
 pub mod text;
 pub mod text_input;
-pub mod renderer;
 #[cfg(feature = "text-styling")]
 pub mod text_styling;
-#[cfg(feature = "built-in-shaders")]
-pub mod built_in_shaders;
-#[cfg(feature = "net")]
-pub mod net;
-pub mod prelude;
 
 use std::{fmt::Debug, mem::take, u32};
 
 use id::Id;
-use macroquad::miniquad::{CursorIcon, window::set_mouse_cursor};
+use macroquad::miniquad::{window::set_mouse_cursor, CursorIcon};
 use math::{Dimensions, Vector2};
 use render_commands::RenderCommand;
 use text::TextConfig;
 
 pub use color::Color;
 
-use crate::{elements::ElementStyle};
+use crate::elements::ElementStyle;
 
 #[allow(dead_code)]
 pub struct Ply<CustomElementData: Clone + Default + std::fmt::Debug = ()> {
@@ -42,8 +42,8 @@ pub struct Ply<CustomElementData: Clone + Default + std::fmt::Debug = ()> {
     headless: bool,
     /// Key repeat tracking for text input control keys
     text_input_repeat_key: u32,
-    text_input_repeat_first: f64,
-    text_input_repeat_last: f64,
+    text_input_repeat_first: f32,
+    text_input_repeat_last: f32,
     /// Which element was focused when the current repeat started.
     /// Used to clear stale repeat state on focus change.
     text_input_repeat_focus_id: u32,
@@ -75,7 +75,7 @@ impl<'ply, CustomElementData: Clone + Default + Debug> UiContent<'ply, CustomEle
             UiContent::Element(mut element) => {
                 element.empty();
                 element.ply
-            },
+            }
         }
     }
 }
@@ -136,8 +136,13 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
 
     /// Configures overflow (clip and scroll) properties.
     #[inline]
-    pub fn overflow(&mut self, f: impl for<'a> FnOnce(&'a mut elements::OverflowBuilder) -> &'a mut elements::OverflowBuilder) {
-        let mut builder = elements::OverflowBuilder { config: self.inner.clip };
+    pub fn overflow(
+        &mut self,
+        f: impl for<'a> FnOnce(&'a mut elements::OverflowBuilder) -> &'a mut elements::OverflowBuilder,
+    ) {
+        let mut builder = elements::OverflowBuilder {
+            config: self.inner.clip,
+        };
         f(&mut builder);
         self.inner.clip = builder.config;
     }
@@ -150,24 +155,39 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
 
     /// Configures layout properties using a closure.
     #[inline]
-    pub fn layout(&mut self, f: impl for<'a> FnOnce(&'a mut layout::LayoutBuilder) -> &'a mut layout::LayoutBuilder) {
-        let mut builder = layout::LayoutBuilder { config: self.inner.layout };
+    pub fn layout(
+        &mut self,
+        f: impl for<'a> FnOnce(&'a mut layout::LayoutBuilder) -> &'a mut layout::LayoutBuilder,
+    ) {
+        let mut builder = layout::LayoutBuilder {
+            config: self.inner.layout,
+        };
         f(&mut builder);
         self.inner.layout = builder.config;
     }
 
     /// Configures floating properties using a closure.
     #[inline]
-    pub fn floating(&mut self, f: impl for<'a> FnOnce(&'a mut elements::FloatingBuilder) -> &'a mut elements::FloatingBuilder) {
-        let mut builder = elements::FloatingBuilder { config: self.inner.floating };
+    pub fn floating(
+        &mut self,
+        f: impl for<'a> FnOnce(&'a mut elements::FloatingBuilder) -> &'a mut elements::FloatingBuilder,
+    ) {
+        let mut builder = elements::FloatingBuilder {
+            config: self.inner.floating,
+        };
         f(&mut builder);
         self.inner.floating = builder.config;
     }
 
     /// Configures border properties using a closure.
     #[inline]
-    pub fn border(&mut self, f: impl for<'a> FnOnce(&'a mut elements::BorderBuilder) -> &'a mut elements::BorderBuilder) {
-        let mut builder = elements::BorderBuilder { config: self.inner.border };
+    pub fn border(
+        &mut self,
+        f: impl for<'a> FnOnce(&'a mut elements::BorderBuilder) -> &'a mut elements::BorderBuilder,
+    ) {
+        let mut builder = elements::BorderBuilder {
+            config: self.inner.border,
+        };
         f(&mut builder);
         self.inner.border = builder.config;
     }
@@ -198,7 +218,11 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     ///     .empty();
     /// ```
     #[inline]
-    pub fn effect(&mut self, asset: &shaders::ShaderAsset, f: impl FnOnce(&mut shaders::ShaderBuilder<'_>)) {
+    pub fn effect(
+        &mut self,
+        asset: &shaders::ShaderAsset,
+        f: impl FnOnce(&mut shaders::ShaderBuilder<'_>),
+    ) {
         let mut builder = shaders::ShaderBuilder::new(asset);
         f(&mut builder);
         self.inner.effects.push(builder.into_config());
@@ -223,7 +247,11 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     ///     });
     /// ```
     #[inline]
-    pub fn shader(&mut self, asset: &shaders::ShaderAsset, f: impl FnOnce(&mut shaders::ShaderBuilder<'_>)) {
+    pub fn shader(
+        &mut self,
+        asset: &shaders::ShaderAsset,
+        f: impl FnOnce(&mut shaders::ShaderBuilder<'_>),
+    ) {
         let mut builder = shaders::ShaderBuilder::new(asset);
         f(&mut builder);
         self.inner.shaders.push(builder.into_config());
@@ -250,7 +278,12 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     ///     .children(|ui| { /* ... */ });
     /// ```
     #[inline]
-    pub fn rotate_visual(&mut self, f: impl for<'a> FnOnce(&'a mut elements::VisualRotationBuilder) -> &'a mut elements::VisualRotationBuilder) {
+    pub fn rotate_visual(
+        &mut self,
+        f: impl for<'a> FnOnce(
+            &'a mut elements::VisualRotationBuilder,
+        ) -> &'a mut elements::VisualRotationBuilder,
+    ) {
         let mut builder = elements::VisualRotationBuilder {
             config: engine::VisualRotationConfig::default(),
         };
@@ -274,7 +307,12 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     ///     .empty();
     /// ```
     #[inline]
-    pub fn rotate_shape(&mut self, f: impl for<'a> FnOnce(&'a mut elements::ShapeRotationBuilder) -> &'a mut elements::ShapeRotationBuilder) {
+    pub fn rotate_shape(
+        &mut self,
+        f: impl for<'a> FnOnce(
+            &'a mut elements::ShapeRotationBuilder,
+        ) -> &'a mut elements::ShapeRotationBuilder,
+    ) {
         let mut builder = elements::ShapeRotationBuilder {
             config: engine::ShapeRotationConfig::default(),
         };
@@ -297,7 +335,9 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     #[inline]
     pub fn accessibility(
         &mut self,
-        f: impl for<'a> FnOnce(&'a mut accessibility::AccessibilityBuilder) -> &'a mut accessibility::AccessibilityBuilder,
+        f: impl for<'a> FnOnce(
+            &'a mut accessibility::AccessibilityBuilder,
+        ) -> &'a mut accessibility::AccessibilityBuilder,
     ) {
         let mut builder = accessibility::AccessibilityBuilder::new();
         f(&mut builder);
@@ -311,6 +351,10 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
         self.inner.preserve_focus = true;
     }
 
+    pub fn elapsed(&self) -> f32 {
+        self.ply.context.get_elapsed_since_birth(&self.id)
+    }
+
     /// Indicates if the element is hovered.
     #[inline]
     pub fn is_hovered(&self) -> bool {
@@ -318,7 +362,7 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     }
 
     #[inline]
-    pub fn since_hovered(&self) -> Option<f64> {
+    pub fn since_hovered(&self) -> Option<f32> {
         self.ply.context.since_hovered(&self.id)
     }
 
@@ -338,7 +382,7 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     }
 
     #[inline]
-    pub fn since_pressed(&self) -> Option<f64> {
+    pub fn since_pressed(&self) -> Option<f32> {
         self.ply.context.since_pressed(&self.id)
     }
 
@@ -358,7 +402,7 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     }
 
     #[inline]
-    pub fn since_focused(&self) -> Option<f64> {
+    pub fn since_focused(&self) -> Option<f32> {
         self.ply.context.since_focused(&self.id)
     }
 
@@ -398,7 +442,9 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     #[inline]
     pub fn text_input(
         mut self,
-        f: impl for<'a> FnOnce(&'a mut text_input::TextInputBuilder) -> &'a mut text_input::TextInputBuilder,
+        f: impl for<'a> FnOnce(
+            &'a mut text_input::TextInputBuilder,
+        ) -> &'a mut text_input::TextInputBuilder,
     ) -> Self {
         let mut builder = text_input::TextInputBuilder::new();
         f(&mut builder);
@@ -425,8 +471,12 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
         }
 
         let ElementBuilder {
-            ply, inner, id, finished,
-            text_input_on_changed_fn, text_input_on_submit_fn,
+            ply,
+            inner,
+            id,
+            finished,
+            text_input_on_changed_fn,
+            text_input_on_submit_fn,
         } = self;
 
         *finished = true;
@@ -441,19 +491,27 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
         let element_id = ply.context.get_open_element_id();
 
         if text_input_on_changed_fn.is_some() || text_input_on_submit_fn.is_some() {
-            ply.context.set_text_input_callbacks(text_input_on_changed_fn.take(), text_input_on_submit_fn.take());
+            ply.context.set_text_input_callbacks(
+                text_input_on_changed_fn.take(),
+                text_input_on_submit_fn.take(),
+            );
         }
 
         ply.context.seed_stack.push(id.id);
 
-        let mut ui = Ui { content: UiContent::Ply(ply) };
+        let mut ui = Ui {
+            content: UiContent::Ply(ply),
+        };
         f(&mut ui);
-        
+
         let ply = ui.content.take();
         ply.context.close_element();
         ply.context.seed_stack.pop();
 
-        Id { id: element_id, ..Default::default() }
+        Id {
+            id: element_id,
+            ..Default::default()
+        }
     }
 
     /// Finalizes the element with no children.
@@ -559,9 +617,7 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug> Ui<'ply, Custom
 
 impl<CustomElementData: Clone + Default + std::fmt::Debug> Ply<CustomElementData> {
     /// Starts a new frame, returning a [`Ui`] handle for building the element tree.
-    pub fn begin(
-        &mut self,
-    ) -> Ui<'_, CustomElementData> {
+    pub fn begin(&mut self) -> Ui<'_, CustomElementData> {
         if !self.headless {
             self.context.set_layout_dimensions(Dimensions::new(
                 macroquad::prelude::screen_width(),
@@ -569,7 +625,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> Ply<CustomElementData
             ));
 
             // Update timing
-            self.context.current_time = macroquad::prelude::get_time();
+            self.context.current_time = macroquad::prelude::get_time() as f32;
             self.context.frame_delta_time = macroquad::prelude::get_frame_time();
         }
 
@@ -583,13 +639,13 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> Ply<CustomElementData
         // Auto-update pointer state from macroquad
         if !self.headless {
             let (mx, my) = macroquad::prelude::mouse_position();
-            let is_down = macroquad::prelude::is_mouse_button_down(
-                macroquad::prelude::MouseButton::Left,
-            );
+            let is_down =
+                macroquad::prelude::is_mouse_button_down(macroquad::prelude::MouseButton::Left);
 
             // Check shift state for text input click-to-cursor
             // Must happen AFTER set_pointer_state, since that's what creates pending_text_click.
-            self.context.set_pointer_state(Vector2::new(mx, my), is_down);
+            self.context
+                .set_pointer_state(Vector2::new(mx, my), is_down);
 
             {
                 use macroquad::prelude::{is_key_down, KeyCode};
@@ -614,10 +670,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> Ply<CustomElementData
             };
             let scroll_delta = if scroll_shift {
                 // Shift held: vertical scroll becomes horizontal
-                Vector2::new(
-                    (scroll_x + scroll_y) * SCROLL_SPEED,
-                    0.0,
-                )
+                Vector2::new((scroll_x + scroll_y) * SCROLL_SPEED, 0.0)
             } else {
                 Vector2::new(scroll_x * SCROLL_SPEED, scroll_y * SCROLL_SPEED)
             };
@@ -639,7 +692,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> Ply<CustomElementData
             );
 
             // Keyboard input handling
-            use macroquad::prelude::{is_key_pressed, is_key_down, is_key_released, KeyCode};
+            use macroquad::prelude::{is_key_down, is_key_pressed, is_key_released, KeyCode};
 
             let text_input_focused = self.context.is_text_input_focused();
             let current_focused_id = self.context.focused_element_id;
@@ -662,8 +715,8 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> Ply<CustomElementData
                 let time = self.context.current_time;
 
                 // Key repeat constants
-                const INITIAL_DELAY: f64 = 0.5;
-                const REPEAT_INTERVAL: f64 = 0.033;
+                const INITIAL_DELAY: f32 = 0.5;
+                const REPEAT_INTERVAL: f32 = 0.033;
 
                 // Helper: check if a key should fire (pressed or repeating)
                 macro_rules! key_fires {
@@ -692,75 +745,95 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> Ply<CustomElementData
                 let mut cursor_moved = false;
                 if key_fires!(KeyCode::Left, 1) {
                     if ctrl {
-                        self.context.process_text_input_action(engine::TextInputAction::MoveWordLeft { shift });
+                        self.context.process_text_input_action(
+                            engine::TextInputAction::MoveWordLeft { shift },
+                        );
                     } else {
-                        self.context.process_text_input_action(engine::TextInputAction::MoveLeft { shift });
+                        self.context
+                            .process_text_input_action(engine::TextInputAction::MoveLeft { shift });
                     }
                     cursor_moved = true;
                 }
                 if key_fires!(KeyCode::Right, 2) {
                     if ctrl {
-                        self.context.process_text_input_action(engine::TextInputAction::MoveWordRight { shift });
+                        self.context.process_text_input_action(
+                            engine::TextInputAction::MoveWordRight { shift },
+                        );
                     } else {
-                        self.context.process_text_input_action(engine::TextInputAction::MoveRight { shift });
+                        self.context.process_text_input_action(
+                            engine::TextInputAction::MoveRight { shift },
+                        );
                     }
                     cursor_moved = true;
                 }
                 if key_fires!(KeyCode::Backspace, 3) {
                     if ctrl {
-                        self.context.process_text_input_action(engine::TextInputAction::BackspaceWord);
+                        self.context
+                            .process_text_input_action(engine::TextInputAction::BackspaceWord);
                     } else {
-                        self.context.process_text_input_action(engine::TextInputAction::Backspace);
+                        self.context
+                            .process_text_input_action(engine::TextInputAction::Backspace);
                     }
                     cursor_moved = true;
                 }
                 if key_fires!(KeyCode::Delete, 4) {
                     if ctrl {
-                        self.context.process_text_input_action(engine::TextInputAction::DeleteWord);
+                        self.context
+                            .process_text_input_action(engine::TextInputAction::DeleteWord);
                     } else {
-                        self.context.process_text_input_action(engine::TextInputAction::Delete);
+                        self.context
+                            .process_text_input_action(engine::TextInputAction::Delete);
                     }
                     cursor_moved = true;
                 }
                 if key_fires!(KeyCode::Home, 5) {
-                    self.context.process_text_input_action(engine::TextInputAction::MoveHome { shift });
+                    self.context
+                        .process_text_input_action(engine::TextInputAction::MoveHome { shift });
                     cursor_moved = true;
                 }
                 if key_fires!(KeyCode::End, 6) {
-                    self.context.process_text_input_action(engine::TextInputAction::MoveEnd { shift });
+                    self.context
+                        .process_text_input_action(engine::TextInputAction::MoveEnd { shift });
                     cursor_moved = true;
                 }
 
                 // Up/Down arrows for multiline
                 if self.context.is_focused_text_input_multiline() {
                     if key_fires!(KeyCode::Up, 7) {
-                        self.context.process_text_input_action(engine::TextInputAction::MoveUp { shift });
+                        self.context
+                            .process_text_input_action(engine::TextInputAction::MoveUp { shift });
                         cursor_moved = true;
                     }
                     if key_fires!(KeyCode::Down, 8) {
-                        self.context.process_text_input_action(engine::TextInputAction::MoveDown { shift });
+                        self.context
+                            .process_text_input_action(engine::TextInputAction::MoveDown { shift });
                         cursor_moved = true;
                     }
                 }
 
                 // Non-repeating keys
                 if is_key_pressed(KeyCode::Enter) {
-                    self.context.process_text_input_action(engine::TextInputAction::Submit);
+                    self.context
+                        .process_text_input_action(engine::TextInputAction::Submit);
                     cursor_moved = true;
                 }
                 if ctrl && is_key_pressed(KeyCode::A) {
-                    self.context.process_text_input_action(engine::TextInputAction::SelectAll);
+                    self.context
+                        .process_text_input_action(engine::TextInputAction::SelectAll);
                 }
                 if ctrl && is_key_pressed(KeyCode::Z) {
                     if shift {
-                        self.context.process_text_input_action(engine::TextInputAction::Redo);
+                        self.context
+                            .process_text_input_action(engine::TextInputAction::Redo);
                     } else {
-                        self.context.process_text_input_action(engine::TextInputAction::Undo);
+                        self.context
+                            .process_text_input_action(engine::TextInputAction::Undo);
                     }
                     cursor_moved = true;
                 }
                 if ctrl && is_key_pressed(KeyCode::Y) {
-                    self.context.process_text_input_action(engine::TextInputAction::Redo);
+                    self.context
+                        .process_text_input_action(engine::TextInputAction::Redo);
                     cursor_moved = true;
                 }
                 if ctrl && is_key_pressed(KeyCode::C) {
@@ -788,13 +861,15 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> Ply<CustomElementData
                             macroquad::miniquad::window::clipboard_set(&selected);
                         }
                     }
-                    self.context.process_text_input_action(engine::TextInputAction::Cut);
+                    self.context
+                        .process_text_input_action(engine::TextInputAction::Cut);
                     cursor_moved = true;
                 }
                 if ctrl && is_key_pressed(KeyCode::V) {
                     // Paste from clipboard
                     if let Some(text) = macroquad::miniquad::window::clipboard_get() {
-                        self.context.process_text_input_action(engine::TextInputAction::Paste { text });
+                        self.context
+                            .process_text_input_action(engine::TextInputAction::Paste { text });
                         cursor_moved = true;
                     }
                 }
@@ -839,14 +914,25 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> Ply<CustomElementData
                 self.context.clamp_text_input_scroll();
             } else {
                 // Normal keyboard navigation (non-text-input)
-                if is_key_pressed(KeyCode::Right) { self.context.arrow_focus(engine::ArrowDirection::Right); }
-                if is_key_pressed(KeyCode::Left)  { self.context.arrow_focus(engine::ArrowDirection::Left); }
-                if is_key_pressed(KeyCode::Up)    { self.context.arrow_focus(engine::ArrowDirection::Up); }
-                if is_key_pressed(KeyCode::Down)  { self.context.arrow_focus(engine::ArrowDirection::Down); }
+                if is_key_pressed(KeyCode::Right) {
+                    self.context.arrow_focus(engine::ArrowDirection::Right);
+                }
+                if is_key_pressed(KeyCode::Left) {
+                    self.context.arrow_focus(engine::ArrowDirection::Left);
+                }
+                if is_key_pressed(KeyCode::Up) {
+                    self.context.arrow_focus(engine::ArrowDirection::Up);
+                }
+                if is_key_pressed(KeyCode::Down) {
+                    self.context.arrow_focus(engine::ArrowDirection::Down);
+                }
 
-                let activate_pressed = is_key_pressed(KeyCode::Enter) || is_key_pressed(KeyCode::Space);
-                let activate_released = is_key_released(KeyCode::Enter) || is_key_released(KeyCode::Space);
-                self.context.handle_keyboard_activation(activate_pressed, activate_released);
+                let activate_pressed =
+                    is_key_pressed(KeyCode::Enter) || is_key_pressed(KeyCode::Space);
+                let activate_released =
+                    is_key_released(KeyCode::Enter) || is_key_released(KeyCode::Space);
+                self.context
+                    .handle_keyboard_activation(activate_pressed, activate_released);
             }
         }
 
@@ -860,7 +946,9 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> Ply<CustomElementData
                 }
                 #[cfg(target_arch = "wasm32")]
                 {
-                    unsafe { ply_show_virtual_keyboard(text_input_focused); }
+                    unsafe {
+                        ply_show_virtual_keyboard(text_input_focused);
+                    }
                 }
                 self.was_text_input_focused = text_input_focused;
             }
@@ -934,9 +1022,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> Ply<CustomElementData
         F: Fn(&str, &TextConfig) -> Dimensions + 'static,
     {
         self.context.set_measure_text_function(Box::new(
-            move |text: &str, config: &TextConfig| -> Dimensions {
-                callback(text, config)
-            },
+            move |text: &str, config: &TextConfig| -> Dimensions { callback(text, config) },
         ));
     }
 
@@ -949,7 +1035,8 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> Ply<CustomElementData
     /// Sets the capacity of the cache used for text in the measure text function
     /// **Use only if you know what you are doing or you're getting errors from ply**
     pub fn max_measure_text_cache_word_count(&mut self, count: u32) {
-        self.context.set_max_measure_text_cache_word_count(count as i32);
+        self.context
+            .set_max_measure_text_cache_word_count(count as i32);
     }
 
     /// Enables or disables the debug mode of ply
@@ -2304,9 +2391,15 @@ mod tests {
         assert_eq!(classify_angle(0.0), AngleType::Zero);
         assert_eq!(classify_angle(std::f32::consts::TAU), AngleType::Zero);
         assert_eq!(classify_angle(-std::f32::consts::TAU), AngleType::Zero);
-        assert_eq!(classify_angle(std::f32::consts::FRAC_PI_2), AngleType::Right90);
+        assert_eq!(
+            classify_angle(std::f32::consts::FRAC_PI_2),
+            AngleType::Right90
+        );
         assert_eq!(classify_angle(std::f32::consts::PI), AngleType::Straight180);
-        assert_eq!(classify_angle(3.0 * std::f32::consts::FRAC_PI_2), AngleType::Right270);
+        assert_eq!(
+            classify_angle(3.0 * std::f32::consts::FRAC_PI_2),
+            AngleType::Right270
+        );
         match classify_angle(1.0) {
             AngleType::Arbitrary(v) => assert!((v - 1.0).abs() < 0.01),
             other => panic!("Expected Arbitrary, got {:?}", other),
@@ -2315,8 +2408,8 @@ mod tests {
 
     #[test]
     fn test_compute_rotated_aabb_zero() {
-        use math::compute_rotated_aabb;
         use layout::CornerRadius;
+        use math::compute_rotated_aabb;
         let cr = CornerRadius::default();
         let (w, h) = compute_rotated_aabb(100.0, 50.0, &cr, 0.0);
         assert_eq!(w, 100.0);
@@ -2325,8 +2418,8 @@ mod tests {
 
     #[test]
     fn test_compute_rotated_aabb_90() {
-        use math::compute_rotated_aabb;
         use layout::CornerRadius;
+        use math::compute_rotated_aabb;
         let cr = CornerRadius::default();
         let (w, h) = compute_rotated_aabb(200.0, 100.0, &cr, std::f32::consts::FRAC_PI_2);
         assert!((w - 100.0).abs() < 0.1, "w should be 100, got {}", w);
@@ -2335,26 +2428,51 @@ mod tests {
 
     #[test]
     fn test_compute_rotated_aabb_45_sharp() {
-        use math::compute_rotated_aabb;
         use layout::CornerRadius;
+        use math::compute_rotated_aabb;
         let cr = CornerRadius::default();
         let theta = std::f32::consts::FRAC_PI_4;
         let (w, h) = compute_rotated_aabb(100.0, 100.0, &cr, theta);
         let expected = 100.0 * 2.0_f32.sqrt();
-        assert!((w - expected).abs() < 0.5, "w should be ~{}, got {}", expected, w);
-        assert!((h - expected).abs() < 0.5, "h should be ~{}, got {}", expected, h);
+        assert!(
+            (w - expected).abs() < 0.5,
+            "w should be ~{}, got {}",
+            expected,
+            w
+        );
+        assert!(
+            (h - expected).abs() < 0.5,
+            "h should be ~{}, got {}",
+            expected,
+            h
+        );
     }
 
     #[test]
     fn test_compute_rotated_aabb_45_rounded() {
-        use math::compute_rotated_aabb;
         use layout::CornerRadius;
-        let cr = CornerRadius { top_left: 10.0, top_right: 10.0, bottom_left: 10.0, bottom_right: 10.0 };
+        use math::compute_rotated_aabb;
+        let cr = CornerRadius {
+            top_left: 10.0,
+            top_right: 10.0,
+            bottom_left: 10.0,
+            bottom_right: 10.0,
+        };
         let theta = std::f32::consts::FRAC_PI_4;
         let (w, h) = compute_rotated_aabb(100.0, 100.0, &cr, theta);
         let expected = 80.0 * 2.0_f32.sqrt() + 20.0; // ~133.14
-        assert!((w - expected).abs() < 0.5, "w should be ~{}, got {}", expected, w);
-        assert!((h - expected).abs() < 0.5, "h should be ~{}, got {}", expected, h);
+        assert!(
+            (w - expected).abs() < 0.5,
+            "w should be ~{}, got {}",
+            expected,
+            w
+        );
+        assert!(
+            (h - expected).abs() < 0.5,
+            "h should be ~{}, got {}",
+            expected,
+            h
+        );
     }
 
     #[test]
@@ -2398,12 +2516,14 @@ mod tests {
         }
 
         // Simulate pointer press at (50, 50) — inside the element
-        ply.context.set_pointer_state(Vector2::new(50.0, 50.0), true);
+        ply.context
+            .set_pointer_state(Vector2::new(50.0, 50.0), true);
         assert_eq!(*press_count.borrow(), 1, "on_press should fire once");
         assert_eq!(*release_count.borrow(), 0, "on_release should not fire yet");
 
         // Simulate pointer release
-        ply.context.set_pointer_state(Vector2::new(50.0, 50.0), false);
+        ply.context
+            .set_pointer_state(Vector2::new(50.0, 50.0), false);
         assert_eq!(*release_count.borrow(), 1, "on_release should fire once");
     }
 
@@ -2425,7 +2545,8 @@ mod tests {
         }
 
         // Simulate pointer press at (50, 50)
-        ply.context.set_pointer_state(Vector2::new(50.0, 50.0), true);
+        ply.context
+            .set_pointer_state(Vector2::new(50.0, 50.0), true);
 
         // Frame 2: check pressed() during layout
         {
@@ -2720,11 +2841,19 @@ mod tests {
 
         // Programmatic set_focus
         ply.context.set_focus(id_a);
-        assert_eq!(*focus_count.borrow(), 1, "on_focus should fire on set_focus");
+        assert_eq!(
+            *focus_count.borrow(),
+            1,
+            "on_focus should fire on set_focus"
+        );
 
         // clear_focus
         ply.context.clear_focus();
-        assert_eq!(*unfocus_count.borrow(), 1, "on_unfocus should fire on clear_focus");
+        assert_eq!(
+            *unfocus_count.borrow(),
+            1,
+            "on_unfocus should fire on clear_focus"
+        );
     }
 
     #[test]
@@ -2771,12 +2900,21 @@ mod tests {
             let focus_ring = items.iter().find(|cmd| {
                 cmd.z_index == 32764 && matches!(cmd.config, RenderCommandConfig::Border(_))
             });
-            assert!(focus_ring.is_some(), "Focus ring border should be in render commands");
+            assert!(
+                focus_ring.is_some(),
+                "Focus ring border should be in render commands"
+            );
 
             let ring = focus_ring.unwrap();
             // Focus ring should be expanded by 2px per side
-            assert!(ring.bounding_box.width > 100.0, "Focus ring should be wider than element");
-            assert!(ring.bounding_box.height > 50.0, "Focus ring should be taller than element");
+            assert!(
+                ring.bounding_box.width > 100.0,
+                "Focus ring should be wider than element"
+            );
+            assert!(
+                ring.bounding_box.height > 50.0,
+                "Focus ring should be taller than element"
+            );
         }
     }
 }

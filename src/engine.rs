@@ -362,7 +362,7 @@ struct LayoutElement {
 
 #[derive(Clone)]
 pub struct LayoutElementInteractionState {
-    pub added_since: Option<f64>,
+    pub added_since: Option<f32>,
     pub added_on_gen: u32,
     pub removed_on_gen: u32,
 }
@@ -394,6 +394,7 @@ struct LayoutElementHashMapItem {
     bounding_box: BoundingBox,
     element_id: Id,
     layout_element_index: i32,
+    created_at: f32,
     hover: LayoutElementInteractionState,
     press: LayoutElementInteractionState,
     focus: LayoutElementInteractionState,
@@ -412,6 +413,7 @@ impl Clone for LayoutElementHashMapItem {
             bounding_box: self.bounding_box,
             element_id: self.element_id.clone(),
             layout_element_index: self.layout_element_index,
+            created_at: self.created_at,
             hover: self.hover.clone(),
             press: self.press.clone(),
             focus: self.focus.clone(),
@@ -702,7 +704,7 @@ pub struct PlyContext<CustomElementData: Clone + Default + std::fmt::Debug = ()>
     pub(crate) text_input_drag_scroll_origin: crate::math::Vector2,
     pub(crate) text_input_drag_element_id: u32,
     /// Current absolute time in seconds (set by lib.rs each frame).
-    pub(crate) current_time: f64,
+    pub(crate) current_time: f32,
     /// Delta time for the current frame in seconds (set by lib.rs each frame).
     pub(crate) frame_delta_time: f32,
 
@@ -934,6 +936,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
                 let item = entry.get_mut();
                 if item.generation <= gen {
                     if gen - item.generation > 1 {
+                        item.created_at = self.current_time;
                         item.hover = Default::default();
                         item.press = Default::default();
                         item.focus = Default::default();
@@ -958,6 +961,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
                     layout_element_index,
                     generation: gen + 1,
                     bounding_box: BoundingBox::default(),
+                    created_at: self.current_time,
                     hover: Default::default(),
                     press: Default::default(),
                     focus: Default::default(),
@@ -4407,6 +4411,14 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
         }
     }
 
+    pub fn get_elapsed_since_birth(&self, elem_id: &Id) -> f32 {
+        let birth_time = self.layout_element_map
+            .get(&elem_id.id)
+            .map_or(0., |item| item.created_at);
+
+        self.current_time - birth_time
+    }
+
     fn get_state(&self, elem_id: &Id, get_state: impl Fn(&LayoutElementHashMapItem) -> &LayoutElementInteractionState) -> &LayoutElementInteractionState {
         self.layout_element_map
             .get(&elem_id.id)
@@ -4418,7 +4430,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
         self.get_state(elem_id, get_state).added_since.is_some()
     }
 
-    fn state_since(&self, elem_id: &Id, get_state: impl Fn(&LayoutElementHashMapItem) -> &LayoutElementInteractionState) -> Option<f64> {
+    fn state_since(&self, elem_id: &Id, get_state: impl Fn(&LayoutElementHashMapItem) -> &LayoutElementInteractionState) -> Option<f32> {
         self.get_state(elem_id, get_state).added_since.map(|time| self.current_time - time)
     }
 
@@ -4434,7 +4446,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
         self.has_state(elem_id, |item| &item.hover)
     }
 
-    pub fn since_hovered(&self, elem_id: &Id) -> Option<f64> {
+    pub fn since_hovered(&self, elem_id: &Id) -> Option<f32> {
         self.state_since(elem_id, |item| &item.hover)
     }
 
@@ -4450,7 +4462,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
         self.has_state(elem_id, |item| &item.press)
     }
 
-    pub fn since_pressed(&self, elem_id: &Id) -> Option<f64> {
+    pub fn since_pressed(&self, elem_id: &Id) -> Option<f32> {
         self.state_since(elem_id, |item| &item.press)
     }
 
@@ -4466,7 +4478,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
         self.has_state(elem_id, |item| &item.focus)
     }
 
-    pub fn since_focused(&self, elem_id: &Id) -> Option<f64> {
+    pub fn since_focused(&self, elem_id: &Id) -> Option<f32> {
         self.state_since(elem_id, |item| &item.focus)
     }
 
@@ -4994,7 +5006,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
 
     /// Update blink timers for all text input states.
     pub fn update_text_input_blink_timers(&mut self) {
-        let dt = self.frame_delta_time as f64;
+        let dt = self.frame_delta_time;
         for state in self.text_edit_states.values_mut() {
             state.cursor_blink_timer += dt;
         }
