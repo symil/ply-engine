@@ -2186,7 +2186,7 @@ pub async fn render<CustomElementData: Clone + Default + std::fmt::Debug>(
                         (tl_sides, PI, tl_r, x1 + tl_r, y1 + tl_r, left, top),
                         (tr_sides, PI * 1.5, tr_r, x2 - tr_r, y1 + tr_r, -right, top),
                         (bl_sides, PI * 0.5, bl_r, x1 + bl_r, y2 - bl_r, left, -bottom),
-                        (br_sides, 0., br_r, x2 - br_r, y2 - bl_r, -right, -bottom),
+                        (br_sides, 0., br_r, x2 - br_r, y2 - br_r, -right, -bottom),
                     ];
 
                     for (sides, start, r, x1, y1, dx, dy) in corners {

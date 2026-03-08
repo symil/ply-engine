@@ -242,8 +242,8 @@ impl BorderBuilder {
 
     /// Sets the position of the border relative to the bounding box.
     #[inline]
-    pub fn position(&mut self, position: impl Into<BorderPosition>) -> &mut Self {
-        self.config.position = position.into();
+    pub fn position(&mut self, position: BorderPosition) -> &mut Self {
+        self.config.position = position;
         self
     }
 }
