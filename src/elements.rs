@@ -1,3 +1,6 @@
+use std::fmt::Debug;
+
+use crate::ElementBuilder;
 use crate::align::{AlignX, AlignY};
 use crate::id::Id;
 use crate::{color::Color, Vector2, engine};
@@ -306,5 +309,19 @@ impl ShapeRotationBuilder {
     pub fn flip_y(&mut self) -> &mut Self {
         self.config.flip_y = true;
         self
+    }
+}
+
+pub trait ElementStyle<CustomElementData: Clone + Default + Debug> {
+    fn style(self, elt: &mut ElementBuilder<'_, CustomElementData>);
+}
+
+impl<CustomElementData, T> ElementStyle<CustomElementData> for T
+    where
+        CustomElementData: Clone + Default + Debug,
+        T: FnOnce(&mut ElementBuilder<'_, CustomElementData>),
+{
+    fn style(self, elt: &mut ElementBuilder<'_, CustomElementData>) {
+        self(elt)
     }
 }

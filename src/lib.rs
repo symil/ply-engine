@@ -31,6 +31,8 @@ use text::TextConfig;
 
 pub use color::Color;
 
+use crate::elements::ElementStyle;
+
 #[allow(dead_code)]
 pub struct Ply<CustomElementData: Clone + Default + std::fmt::Debug = ()> {
     context: engine::PlyContext<CustomElementData>,
@@ -387,6 +389,12 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
         self.inner.text_input = Some(builder.config);
         self.text_input_on_changed_fn = builder.on_changed_fn;
         self.text_input_on_submit_fn = builder.on_submit_fn;
+        self
+    }
+
+    /// Applies the specified function to the element.
+    pub fn style(mut self, style: impl ElementStyle<CustomElementData>) -> Self {
+        style.style(&mut self);
         self
     }
 
