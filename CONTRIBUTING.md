@@ -15,7 +15,7 @@ Thanks for your interest in contributing to Ply!
 
 ## Commit messages
 
-Prefix your commits:
+All PRs are squash-merged, so your commit messages during development don't matter. The final squash commit will use these prefixes:
 
 - `feat:` new feature
 - `fix:` bug fix
