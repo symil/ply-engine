@@ -579,7 +579,7 @@ pub struct PlyContext<CustomElementData: Clone + Default + std::fmt::Debug = ()>
 
     // Pointer info
     pointer_info: PointerData,
-    cursor_icon: CursorIcon,
+    pub(crate) cursor_icon: CursorIcon,
     pub layout_dimensions: Dimensions,
 
     // Dynamic element tracking

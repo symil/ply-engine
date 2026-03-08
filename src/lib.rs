@@ -27,6 +27,7 @@ pub mod prelude;
 use std::u32;
 
 use id::Id;
+use macroquad::miniquad::{CursorIcon, window::set_mouse_cursor};
 use math::{Dimensions, Vector2};
 use render_commands::RenderCommand;
 use text::TextConfig;
@@ -410,6 +411,11 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
         self
     }
 
+    pub fn cursor(self, cursor: CursorIcon) -> Self {
+        self.ply.context.cursor_icon = cursor;
+        self
+    }
+
     /// Applies the specified function to the element.
     pub fn style(mut self, style: impl ElementStyle<CustomElementData>) -> Self {
         style.style(&mut self);
@@ -544,6 +550,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> Ply<CustomElementData
             self.context.frame_delta_time = macroquad::prelude::get_frame_time();
         }
 
+        self.context.cursor_icon = CursorIcon::Default;
         self.context.seed_stack.clear();
         self.context.seed_stack.push(0);
 
@@ -1083,6 +1090,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> Ply<CustomElementData
     ) {
         let commands = self.eval();
         renderer::render(commands, handle_custom_command).await;
+        set_mouse_cursor(self.context.cursor_icon);
     }
 }
 
