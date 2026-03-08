@@ -1,4 +1,4 @@
-use crate::{color::Color, engine::{self, ShapeRotationConfig, VisualRotationConfig}, math::BoundingBox, renderer::ImageSource, shaders::ShaderConfig};
+use crate::{color::Color, engine::{self, ShapeRotationConfig, VisualRotationConfig}, math::BoundingBox, elements::BorderPosition, renderer::ImageSource, shaders::ShaderConfig};
 
 /// Represents a rectangle with a specified color and corner radii.
 #[derive(Debug, Clone)]
@@ -63,6 +63,8 @@ pub struct Border {
     pub corner_radii: CornerRadii,
     /// The width of the border on each side.
     pub width: BorderWidth,
+    /// The position of the border relative to the bounding box.
+    pub position: BorderPosition,
 }
 
 /// Represents an image with defined dimensions and data.
@@ -160,7 +162,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug>
                 }
             }
             engine::RenderCommandType::Border => {
-                if let engine::InternalRenderData::Border { color, corner_radius, width } = &value.render_data {
+                if let engine::InternalRenderData::Border { color, corner_radius, width, position } = &value.render_data {
                     Self::Border(Border {
                         color: *color,
                         corner_radii: (*corner_radius).into(),
@@ -171,6 +173,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug>
                             bottom: width.bottom,
                             between_children: width.between_children,
                         },
+                        position: *position,
                     })
                 } else {
                     Self::None()

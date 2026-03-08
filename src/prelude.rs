@@ -23,6 +23,9 @@ pub use crate::{grow, fit, fixed, percent};
 pub use crate::align::AlignX::{self, *};
 pub use crate::align::AlignY::{self, *};
 
+// BorderPosition — globbed
+pub use crate::elements::BorderPosition::{self, *};
+
 // LayoutDirection — globbed
 pub use crate::layout::LayoutDirection::{self, *};
 
