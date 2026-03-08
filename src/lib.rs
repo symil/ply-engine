@@ -1085,34 +1085,46 @@ mod tests {
 
         let mut ui = ply.begin();
 
-        ui.element().width(fixed!(100.0)).height(fixed!(100.0))
-            .background_color(0xFFFFFF)
-            .children(|ui| {
-                ui.element().width(fixed!(100.0)).height(fixed!(100.0))
-                    .background_color(0xFFFFFF)
-                    .children(|ui| {
-                        ui.element().width(fixed!(100.0)).height(fixed!(100.0))
-                            .background_color(0xFFFFFF)
-                            .children(|ui| {
-                                ui.text("test", |t| t
-                                    .color(0xFFFFFF)
-                                    .font_size(24)
-                                );
-                            });
+        {
+            let mut el = ui.element();
+            el.width(fixed!(100.0));
+            el.height(fixed!(100.0));
+            el.background_color(0xFFFFFF);
+            el.children(|ui| {
+                let mut el = ui.element();
+                el.width(fixed!(100.0));
+                el.height(fixed!(100.0));
+                el.background_color(0xFFFFFF);
+                el.children(|ui| {
+                    let mut el = ui.element();
+                    el.width(fixed!(100.0));
+                    el.height(fixed!(100.0));
+                    el.background_color(0xFFFFFF);
+                    el.children(|ui| {
+                        ui.text("test", |t| t
+                            .color(0xFFFFFF)
+                            .font_size(24)
+                        );
                     });
+                });
             });
+        }
 
-        ui.element()
-            .border(|b| b
+        {
+            let mut el = ui.element();
+            el.border(|b| b
                 .color(0xFFFF00)
                 .all(2)
-            )
-            .corner_radius(10.0)
-            .children(|ui| {
-                ui.element().width(fixed!(50.0)).height(fixed!(50.0))
-                    .background_color(0x00FFFF)
-                    .empty();
+            );
+            el.corner_radius(10.0);
+            el.children(|ui| {
+                let mut el = ui.element();
+                el.width(fixed!(50.0));
+                el.height(fixed!(50.0));
+                el.background_color(0x00FFFF);
+                el.empty();
             });
+        }
 
         let items = ui.eval();
 
@@ -1232,29 +1244,33 @@ mod tests {
         });
 
         for &(label, level) in &[("Road", 1), ("Wall", 2), ("Tower", 3)] {
-            ui.element().width(grow!()).height(fixed!(36.0))
-                .layout(|l| l
-                    .direction(crate::layout::LayoutDirection::LeftToRight)
-                    .gap(12)
-                    .align(crate::align::AlignX::Left, crate::align::AlignY::CenterY)
-                )
-                .children(|ui| {
-                    ui.text(label, |t| t
-                        .font_size(18)
-                        .color(0xFFFFFF)
-                    );
-                    ui.element().width(grow!()).height(fixed!(18.0))
-                        .corner_radius(9.0)
-                        .background_color(0x555555)
-                        .children(|ui| {
-                            ui.element()
-                                .width(fixed!(300.0 * level as f32 / 3.0))
-                                .height(grow!())
-                                .corner_radius(9.0)
-                                .background_color(0x45A85A)
-                                .empty();
-                        });
+            let mut el = ui.element();
+            el.width(grow!());
+            el.height(fixed!(36.0));
+            el.layout(|l| l
+                .direction(crate::layout::LayoutDirection::LeftToRight)
+                .gap(12)
+                .align(crate::align::AlignX::Left, crate::align::AlignY::CenterY)
+            );
+            el.children(|ui| {
+                ui.text(label, |t| t
+                    .font_size(18)
+                    .color(0xFFFFFF)
+                );
+                let mut el = ui.element();
+                el.width(grow!());
+                el.height(fixed!(18.0));
+                el.corner_radius(9.0);
+                el.background_color(0x555555);
+                el.children(|ui| {
+                    let mut el = ui.element();
+                    el.width(fixed!(300.0 * level as f32 / 3.0));
+                    el.height(grow!());
+                    el.corner_radius(9.0);
+                    el.background_color(0x45A85A);
+                    el.empty();
                 });
+            });
         }
 
         let items = ui.eval();
@@ -1445,23 +1461,27 @@ mod tests {
             Dimensions::new(100.0, 24.0)
         });
 
-        ui.element().width(fixed!(20.0)).height(fixed!(20.0))
-            .layout(|l| l.align(crate::align::AlignX::CenterX, crate::align::AlignY::CenterY))
-            .floating(|f| f
+        {
+            let mut el = ui.element();
+            el.width(fixed!(20.0));
+            el.height(fixed!(20.0));
+            el.layout(|l| l.align(crate::align::AlignX::CenterX, crate::align::AlignY::CenterY));
+            el.floating(|f| f
                 .attach_root()
                 .anchor((crate::align::AlignX::CenterX, crate::align::AlignY::CenterY), (crate::align::AlignX::Left, crate::align::AlignY::Top))
                 .offset(100.0, 150.0)
                 .passthrough()
                 .z_index(110)
-            )
-            .corner_radius(10.0)
-            .background_color(0x4488DD)
-            .children(|ui| {
+            );
+            el.corner_radius(10.0);
+            el.background_color(0x4488DD);
+            el.children(|ui| {
                 ui.text("Re", |t| t
                     .font_size(6)
                     .color(0xFFFFFF)
                 );
             });
+        }
 
         let items = ui.eval();
 
@@ -1520,20 +1540,22 @@ mod tests {
 
         let mut ui = ply.begin();
 
-        ui.element()
-            .id("parent_rect")
-            .width(Sizing::Fixed(100.0))
-            .height(Sizing::Fixed(100.0))
-            .layout(|l| l
+        {
+            let mut el = ui.element();
+            el.id("parent_rect");
+            el.width(Sizing::Fixed(100.0));
+            el.height(Sizing::Fixed(100.0));
+            el.layout(|l| l
                 .padding(Padding::all(10))
-            )
-            .background_color(Color::rgb(255., 255., 255.))
-            .children(|ui| {
+            );
+            el.background_color(Color::rgb(255., 255., 255.));
+            el.children(|ui| {
                 ui.text(&format!("{}", 1234), |t| t
                     .color(Color::rgb(255., 255., 255.))
                     .font_size(24)
                 );
             });
+        }
 
         let _items = ui.eval();
     }
@@ -1554,18 +1576,22 @@ mod tests {
         let mut ui = ply.begin();
 
         // Element with a group shader containing children
-        ui.element()
-            .width(fixed!(200.0)).height(fixed!(200.0))
-            .background_color(0xFF0000)
-            .shader(&test_shader, |s| {
+        {
+            let mut el = ui.element();
+            el.width(fixed!(200.0));
+            el.height(fixed!(200.0));
+            el.background_color(0xFF0000);
+            el.shader(&test_shader, |s| {
                 s.uniform("time", 1.0f32);
-            })
-            .children(|ui| {
-                ui.element()
-                    .width(fixed!(100.0)).height(fixed!(100.0))
-                    .background_color(0x00FF00)
-                    .empty();
             });
+            el.children(|ui| {
+                let mut el = ui.element();
+                el.width(fixed!(100.0));
+                el.height(fixed!(100.0));
+                el.background_color(0x00FF00);
+                el.empty();
+            });
+        }
 
         let items = ui.eval();
 
@@ -1638,17 +1664,21 @@ mod tests {
         let mut ui = ply.begin();
 
         // Element with two group shaders
-        ui.element()
-            .width(fixed!(200.0)).height(fixed!(200.0))
-            .background_color(0xFFFFFF)
-            .shader(&shader_a, |s| { s.uniform("val", 1.0f32); })
-            .shader(&shader_b, |s| { s.uniform("val", 2.0f32); })
-            .children(|ui| {
-                ui.element()
-                    .width(fixed!(50.0)).height(fixed!(50.0))
-                    .background_color(0x0000FF)
-                    .empty();
+        {
+            let mut el = ui.element();
+            el.width(fixed!(200.0));
+            el.height(fixed!(200.0));
+            el.background_color(0xFFFFFF);
+            el.shader(&shader_a, |s| { s.uniform("val", 1.0f32); });
+            el.shader(&shader_b, |s| { s.uniform("val", 2.0f32); });
+            el.children(|ui| {
+                let mut el = ui.element();
+                el.width(fixed!(50.0));
+                el.height(fixed!(50.0));
+                el.background_color(0x0000FF);
+                el.empty();
             });
+        }
 
         let items = ui.eval();
 
@@ -1713,14 +1743,17 @@ mod tests {
 
         let mut ui = ply.begin();
 
-        ui.element()
-            .width(fixed!(200.0)).height(fixed!(100.0))
-            .background_color(0xFF0000)
-            .effect(&effect_shader, |s| {
+        {
+            let mut el = ui.element();
+            el.width(fixed!(200.0));
+            el.height(fixed!(100.0));
+            el.background_color(0xFF0000);
+            el.effect(&effect_shader, |s| {
                 s.uniform("color_a", [1.0f32, 0.0, 0.0, 1.0])
                  .uniform("color_b", [0.0f32, 0.0, 1.0, 1.0]);
-            })
-            .empty();
+            });
+            el.empty();
+        }
 
         let items = ui.eval();
 
@@ -1737,11 +1770,14 @@ mod tests {
         let mut ply = Ply::<()>::new_headless(Dimensions::new(800.0, 600.0));
         let mut ui = ply.begin();
 
-        ui.element()
-            .width(fixed!(100.0)).height(fixed!(50.0))
-            .background_color(0xFF0000)
-            .rotate_visual(|r| r.degrees(45.0))
-            .empty();
+        {
+            let mut el = ui.element();
+            el.width(fixed!(100.0));
+            el.height(fixed!(50.0));
+            el.background_color(0xFF0000);
+            el.rotate_visual(|r| r.degrees(45.0));
+            el.empty();
+        }
 
         let items = ui.eval();
 
@@ -1786,12 +1822,15 @@ mod tests {
         let mut ui = ply.begin();
 
         // Both shader and visual rotation — should emit ONE GroupBegin
-        ui.element()
-            .width(fixed!(100.0)).height(fixed!(100.0))
-            .background_color(0xFF0000)
-            .shader(&test_shader, |s| { s.uniform("v", 1.0f32); })
-            .rotate_visual(|r| r.degrees(30.0).pivot(0.0, 0.0))
-            .empty();
+        {
+            let mut el = ui.element();
+            el.width(fixed!(100.0));
+            el.height(fixed!(100.0));
+            el.background_color(0xFF0000);
+            el.shader(&test_shader, |s| { s.uniform("v", 1.0f32); });
+            el.rotate_visual(|r| r.degrees(30.0).pivot(0.0, 0.0));
+            el.empty();
+        }
 
         let items = ui.eval();
 
@@ -1827,13 +1866,16 @@ mod tests {
         let mut ply = Ply::<()>::new_headless(Dimensions::new(800.0, 600.0));
         let mut ui = ply.begin();
 
-        ui.element()
-            .width(fixed!(100.0)).height(fixed!(100.0))
-            .background_color(0xFF0000)
-            .shader(&shader_a, |s| { s.uniform("v", 1.0f32); })
-            .shader(&shader_b, |s| { s.uniform("v", 2.0f32); })
-            .rotate_visual(|r| r.degrees(90.0))
-            .empty();
+        {
+            let mut el = ui.element();
+            el.width(fixed!(100.0));
+            el.height(fixed!(100.0));
+            el.background_color(0xFF0000);
+            el.shader(&shader_a, |s| { s.uniform("v", 1.0f32); });
+            el.shader(&shader_b, |s| { s.uniform("v", 2.0f32); });
+            el.rotate_visual(|r| r.degrees(90.0));
+            el.empty();
+        }
 
         let items = ui.eval();
 
@@ -1866,11 +1908,14 @@ mod tests {
         let mut ui = ply.begin();
 
         // 0° rotation with no flips — should be optimized away
-        ui.element()
-            .width(fixed!(100.0)).height(fixed!(100.0))
-            .background_color(0xFF0000)
-            .rotate_visual(|r| r.degrees(0.0))
-            .empty();
+        {
+            let mut el = ui.element();
+            el.width(fixed!(100.0));
+            el.height(fixed!(100.0));
+            el.background_color(0xFF0000);
+            el.rotate_visual(|r| r.degrees(0.0));
+            el.empty();
+        }
 
         let items = ui.eval();
 
@@ -1889,11 +1934,14 @@ mod tests {
         let mut ui = ply.begin();
 
         // 0° but flip_x — NOT a noop, should emit group
-        ui.element()
-            .width(fixed!(100.0)).height(fixed!(100.0))
-            .background_color(0xFF0000)
-            .rotate_visual(|r| r.flip_x())
-            .empty();
+        {
+            let mut el = ui.element();
+            el.width(fixed!(100.0));
+            el.height(fixed!(100.0));
+            el.background_color(0xFF0000);
+            el.rotate_visual(|r| r.flip_x());
+            el.empty();
+        }
 
         let items = ui.eval();
 
@@ -1916,11 +1964,14 @@ mod tests {
         let mut ply = Ply::<()>::new_headless(Dimensions::new(800.0, 600.0));
         let mut ui = ply.begin();
 
-        ui.element()
-            .width(fixed!(200.0)).height(fixed!(100.0))
-            .background_color(0xFF0000)
-            .rotate_visual(|r| r.degrees(45.0))
-            .empty();
+        {
+            let mut el = ui.element();
+            el.width(fixed!(200.0));
+            el.height(fixed!(100.0));
+            el.background_color(0xFF0000);
+            el.rotate_visual(|r| r.degrees(45.0));
+            el.empty();
+        }
 
         let items = ui.eval();
 
@@ -1936,16 +1987,19 @@ mod tests {
         let mut ply = Ply::<()>::new_headless(Dimensions::new(800.0, 600.0));
         let mut ui = ply.begin();
 
-        ui.element()
-            .width(fixed!(100.0)).height(fixed!(100.0))
-            .background_color(0xFF0000)
-            .rotate_visual(|r| r
+        {
+            let mut el = ui.element();
+            el.width(fixed!(100.0));
+            el.height(fixed!(100.0));
+            el.background_color(0xFF0000);
+            el.rotate_visual(|r| r
                 .radians(std::f32::consts::FRAC_PI_2)
                 .pivot(0.25, 0.75)
                 .flip_x()
                 .flip_y()
-            )
-            .empty();
+            );
+            el.empty();
+        }
 
         let items = ui.eval();
 
@@ -1968,11 +2022,14 @@ mod tests {
         let mut ply = Ply::<()>::new_headless(Dimensions::new(800.0, 600.0));
         let mut ui = ply.begin();
 
-        ui.element()
-            .width(fixed!(100.0)).height(fixed!(50.0))
-            .background_color(0xFF0000)
-            .rotate_shape(|r| r.degrees(45.0))
-            .empty();
+        {
+            let mut el = ui.element();
+            el.width(fixed!(100.0));
+            el.height(fixed!(50.0));
+            el.background_color(0xFF0000);
+            el.rotate_shape(|r| r.degrees(45.0));
+            el.empty();
+        }
 
         let items = ui.eval();
 
@@ -1991,15 +2048,20 @@ mod tests {
         let mut ply = Ply::<()>::new_headless(Dimensions::new(800.0, 600.0));
         let mut ui = ply.begin();
 
-        ui.element().width(grow!()).height(grow!())
-            .layout(|l| l)
-            .children(|ui| {
-                ui.element()
-                    .width(fixed!(200.0)).height(fixed!(100.0))
-                    .background_color(0xFF0000)
-                    .rotate_shape(|r| r.degrees(90.0))
-                    .empty();
+        {
+            let mut el = ui.element();
+            el.width(grow!());
+            el.height(grow!());
+            el.layout(|l| l);
+            el.children(|ui| {
+                let mut el = ui.element();
+                el.width(fixed!(200.0));
+                el.height(fixed!(100.0));
+                el.background_color(0xFF0000);
+                el.rotate_shape(|r| r.degrees(90.0));
+                el.empty();
             });
+        }
 
         let items = ui.eval();
 
@@ -2018,21 +2080,31 @@ mod tests {
         let mut ui = ply.begin();
 
         // We need a parent to see the AABB effect on sibling positioning
-        ui.element().width(grow!()).height(grow!())
-            .layout(|l| l.direction(layout::LayoutDirection::LeftToRight))
-            .children(|ui| {
-                ui.element()
-                    .width(fixed!(100.0)).height(fixed!(100.0))
-                    .background_color(0xFF0000)
-                    .rotate_shape(|r| r.degrees(45.0))
-                    .empty();
+        {
+            let mut el = ui.element();
+            el.width(grow!());
+            el.height(grow!());
+            el.layout(|l| l.direction(layout::LayoutDirection::LeftToRight));
+            el.children(|ui| {
+                {
+                    let mut el = ui.element();
+                    el.width(fixed!(100.0));
+                    el.height(fixed!(100.0));
+                    el.background_color(0xFF0000);
+                    el.rotate_shape(|r| r.degrees(45.0));
+                    el.empty();
+                }
 
                 // Second element — its x-position should be offset by ~141.4
-                ui.element()
-                    .width(fixed!(50.0)).height(fixed!(50.0))
-                    .background_color(0x00FF00)
-                    .empty();
+                {
+                    let mut el = ui.element();
+                    el.width(fixed!(50.0));
+                    el.height(fixed!(50.0));
+                    el.background_color(0x00FF00);
+                    el.empty();
+                }
             });
+        }
 
         let items = ui.eval();
 
@@ -2057,21 +2129,31 @@ mod tests {
         let mut ply = Ply::<()>::new_headless(Dimensions::new(800.0, 600.0));
         let mut ui = ply.begin();
 
-        ui.element().width(grow!()).height(grow!())
-            .layout(|l| l.direction(layout::LayoutDirection::LeftToRight))
-            .children(|ui| {
-                ui.element()
-                    .width(fixed!(100.0)).height(fixed!(100.0))
-                    .corner_radius(10.0)
-                    .background_color(0xFF0000)
-                    .rotate_shape(|r| r.degrees(45.0))
-                    .empty();
+        {
+            let mut el = ui.element();
+            el.width(grow!());
+            el.height(grow!());
+            el.layout(|l| l.direction(layout::LayoutDirection::LeftToRight));
+            el.children(|ui| {
+                {
+                    let mut el = ui.element();
+                    el.width(fixed!(100.0));
+                    el.height(fixed!(100.0));
+                    el.corner_radius(10.0);
+                    el.background_color(0xFF0000);
+                    el.rotate_shape(|r| r.degrees(45.0));
+                    el.empty();
+                }
 
-                ui.element()
-                    .width(fixed!(50.0)).height(fixed!(50.0))
-                    .background_color(0x00FF00)
-                    .empty();
+                {
+                    let mut el = ui.element();
+                    el.width(fixed!(50.0));
+                    el.height(fixed!(50.0));
+                    el.background_color(0x00FF00);
+                    el.empty();
+                }
             });
+        }
 
         let items = ui.eval();
 
@@ -2095,11 +2177,14 @@ mod tests {
         let mut ply = Ply::<()>::new_headless(Dimensions::new(800.0, 600.0));
         let mut ui = ply.begin();
 
-        ui.element()
-            .width(fixed!(100.0)).height(fixed!(50.0))
-            .background_color(0xFF0000)
-            .rotate_shape(|r| r.degrees(0.0))
-            .empty();
+        {
+            let mut el = ui.element();
+            el.width(fixed!(100.0));
+            el.height(fixed!(50.0));
+            el.background_color(0xFF0000);
+            el.rotate_shape(|r| r.degrees(0.0));
+            el.empty();
+        }
 
         let items = ui.eval();
         assert_eq!(items.len(), 1);
@@ -2117,11 +2202,14 @@ mod tests {
         let mut ply = Ply::<()>::new_headless(Dimensions::new(800.0, 600.0));
         let mut ui = ply.begin();
 
-        ui.element()
-            .width(fixed!(100.0)).height(fixed!(50.0))
-            .background_color(0xFF0000)
-            .rotate_shape(|r| r.flip_x())
-            .empty();
+        {
+            let mut el = ui.element();
+            el.width(fixed!(100.0));
+            el.height(fixed!(50.0));
+            el.background_color(0xFF0000);
+            el.rotate_shape(|r| r.flip_x());
+            el.empty();
+        }
 
         let items = ui.eval();
         assert_eq!(items.len(), 1);
@@ -2140,11 +2228,14 @@ mod tests {
         let mut ply = Ply::<()>::new_headless(Dimensions::new(800.0, 600.0));
         let mut ui = ply.begin();
 
-        ui.element()
-            .width(fixed!(200.0)).height(fixed!(100.0))
-            .background_color(0xFF0000)
-            .rotate_shape(|r| r.degrees(180.0))
-            .empty();
+        {
+            let mut el = ui.element();
+            el.width(fixed!(200.0));
+            el.height(fixed!(100.0));
+            el.background_color(0xFF0000);
+            el.rotate_shape(|r| r.degrees(180.0));
+            el.empty();
+        }
 
         let items = ui.eval();
         assert_eq!(items.len(), 1);
@@ -2223,11 +2314,13 @@ mod tests {
         // Frame 1: lay out a 100x100 element and eval to establish bounding boxes
         {
             let mut ui = ply.begin();
-            ui.element()
-                .id("btn")
-                .width(fixed!(100.0))
-                .height(fixed!(100.0))
-                .empty();
+            {
+                let mut el = ui.element();
+                el.id("btn");
+                el.width(fixed!(100.0));
+                el.height(fixed!(100.0));
+                el.empty();
+            }
             ui.eval();
         }
 
@@ -2236,13 +2329,15 @@ mod tests {
             let pc = press_count.clone();
             let rc = release_count.clone();
             let mut ui = ply.begin();
-            ui.element()
-                .id("btn")
-                .width(fixed!(100.0))
-                .height(fixed!(100.0))
-                .on_press(move |_, _| { *pc.borrow_mut() += 1; })
-                .on_release(move |_, _| { *rc.borrow_mut() += 1; })
-                .empty();
+            {
+                let mut el = ui.element();
+                el.id("btn");
+                el.width(fixed!(100.0));
+                el.height(fixed!(100.0));
+                el.on_press(move |_, _| { *pc.borrow_mut() += 1; })
+                  .on_release(move |_, _| { *rc.borrow_mut() += 1; })
+                  .empty();
+            }
             ui.eval();
         }
 
@@ -2263,11 +2358,13 @@ mod tests {
         // Frame 1: layout
         {
             let mut ui = ply.begin();
-            ui.element()
-                .id("btn")
-                .width(fixed!(100.0))
-                .height(fixed!(100.0))
-                .empty();
+            {
+                let mut el = ui.element();
+                el.id("btn");
+                el.width(fixed!(100.0));
+                el.height(fixed!(100.0));
+                el.empty();
+            }
             ui.eval();
         }
 
@@ -2277,13 +2374,15 @@ mod tests {
         // Frame 2: check pressed() during layout
         {
             let mut ui = ply.begin();
-            ui.element()
-                .id("btn")
-                .width(fixed!(100.0))
-                .height(fixed!(100.0))
-                .children(|ui| {
+            {
+                let mut el = ui.element();
+                el.id("btn");
+                el.width(fixed!(100.0));
+                el.height(fixed!(100.0));
+                el.children(|ui| {
                     assert!(ui.pressed(), "element should report as pressed");
                 });
+            }
             ui.eval();
         }
     }
@@ -2295,24 +2394,30 @@ mod tests {
         // Frame 1: create 3 focusable elements
         {
             let mut ui = ply.begin();
-            ui.element()
-                .id("a")
-                .width(fixed!(100.0))
-                .height(fixed!(50.0))
-                .accessibility(|a| a.button("A"))
-                .empty();
-            ui.element()
-                .id("b")
-                .width(fixed!(100.0))
-                .height(fixed!(50.0))
-                .accessibility(|a| a.button("B"))
-                .empty();
-            ui.element()
-                .id("c")
-                .width(fixed!(100.0))
-                .height(fixed!(50.0))
-                .accessibility(|a| a.button("C"))
-                .empty();
+            {
+                let mut el = ui.element();
+                el.id("a");
+                el.width(fixed!(100.0));
+                el.height(fixed!(50.0));
+                el.accessibility(|a| a.button("A"));
+                el.empty();
+            }
+            {
+                let mut el = ui.element();
+                el.id("b");
+                el.width(fixed!(100.0));
+                el.height(fixed!(50.0));
+                el.accessibility(|a| a.button("B"));
+                el.empty();
+            }
+            {
+                let mut el = ui.element();
+                el.id("c");
+                el.width(fixed!(100.0));
+                el.height(fixed!(50.0));
+                el.accessibility(|a| a.button("C"));
+                el.empty();
+            }
             ui.eval();
         }
 
@@ -2351,24 +2456,30 @@ mod tests {
         // Frame 1: create elements with explicit tab indices (reverse order)
         {
             let mut ui = ply.begin();
-            ui.element()
-                .id("third")
-                .width(fixed!(100.0))
-                .height(fixed!(50.0))
-                .accessibility(|a| a.button("Third").tab_index(3))
-                .empty();
-            ui.element()
-                .id("first")
-                .width(fixed!(100.0))
-                .height(fixed!(50.0))
-                .accessibility(|a| a.button("First").tab_index(1))
-                .empty();
-            ui.element()
-                .id("second")
-                .width(fixed!(100.0))
-                .height(fixed!(50.0))
-                .accessibility(|a| a.button("Second").tab_index(2))
-                .empty();
+            {
+                let mut el = ui.element();
+                el.id("third");
+                el.width(fixed!(100.0));
+                el.height(fixed!(50.0));
+                el.accessibility(|a| a.button("Third").tab_index(3));
+                el.empty();
+            }
+            {
+                let mut el = ui.element();
+                el.id("first");
+                el.width(fixed!(100.0));
+                el.height(fixed!(50.0));
+                el.accessibility(|a| a.button("First").tab_index(1));
+                el.empty();
+            }
+            {
+                let mut el = ui.element();
+                el.id("second");
+                el.width(fixed!(100.0));
+                el.height(fixed!(50.0));
+                el.accessibility(|a| a.button("Second").tab_index(2));
+                el.empty();
+            }
             ui.eval();
         }
 
@@ -2396,18 +2507,22 @@ mod tests {
         // Frame 1: create two elements with arrow overrides
         {
             let mut ui = ply.begin();
-            ui.element()
-                .id("a")
-                .width(fixed!(100.0))
-                .height(fixed!(50.0))
-                .accessibility(|a| a.button("A").focus_right("b"))
-                .empty();
-            ui.element()
-                .id("b")
-                .width(fixed!(100.0))
-                .height(fixed!(50.0))
-                .accessibility(|a| a.button("B").focus_left("a"))
-                .empty();
+            {
+                let mut el = ui.element();
+                el.id("a");
+                el.width(fixed!(100.0));
+                el.height(fixed!(50.0));
+                el.accessibility(|a| a.button("A").focus_right("b"));
+                el.empty();
+            }
+            {
+                let mut el = ui.element();
+                el.id("b");
+                el.width(fixed!(100.0));
+                el.height(fixed!(50.0));
+                el.accessibility(|a| a.button("B").focus_left("a"));
+                el.empty();
+            }
             ui.eval();
         }
 
@@ -2437,12 +2552,14 @@ mod tests {
         // Frame 1: layout + set focus
         {
             let mut ui = ply.begin();
-            ui.element()
-                .id("a")
-                .width(fixed!(100.0))
-                .height(fixed!(50.0))
-                .accessibility(|a| a.button("A"))
-                .empty();
+            {
+                let mut el = ui.element();
+                el.id("a");
+                el.width(fixed!(100.0));
+                el.height(fixed!(50.0));
+                el.accessibility(|a| a.button("A"));
+                el.empty();
+            }
             ui.eval();
         }
 
@@ -2451,14 +2568,16 @@ mod tests {
         // Frame 2: check focused() during layout
         {
             let mut ui = ply.begin();
-            ui.element()
-                .id("a")
-                .width(fixed!(100.0))
-                .height(fixed!(50.0))
-                .accessibility(|a| a.button("A"))
-                .children(|ui| {
+            {
+                let mut el = ui.element();
+                el.id("a");
+                el.width(fixed!(100.0));
+                el.height(fixed!(50.0));
+                el.accessibility(|a| a.button("A"));
+                el.children(|ui| {
                     assert!(ui.focused(), "element should report as focused");
                 });
+            }
             ui.eval();
         }
     }
@@ -2479,21 +2598,25 @@ mod tests {
             let ua = unfocus_a.clone();
             let fb = focus_b.clone();
             let mut ui = ply.begin();
-            ui.element()
-                .id("a")
-                .width(fixed!(100.0))
-                .height(fixed!(50.0))
-                .accessibility(|a| a.button("A"))
-                .on_focus(move |_| { *fa.borrow_mut() += 1; })
-                .on_unfocus(move |_| { *ua.borrow_mut() += 1; })
-                .empty();
-            ui.element()
-                .id("b")
-                .width(fixed!(100.0))
-                .height(fixed!(50.0))
-                .accessibility(|a| a.button("B"))
-                .on_focus(move |_| { *fb.borrow_mut() += 1; })
-                .empty();
+            {
+                let mut el = ui.element();
+                el.id("a");
+                el.width(fixed!(100.0));
+                el.height(fixed!(50.0));
+                el.accessibility(|a| a.button("A"));
+                el.on_focus(move |_| { *fa.borrow_mut() += 1; })
+                  .on_unfocus(move |_| { *ua.borrow_mut() += 1; })
+                  .empty();
+            }
+            {
+                let mut el = ui.element();
+                el.id("b");
+                el.width(fixed!(100.0));
+                el.height(fixed!(50.0));
+                el.accessibility(|a| a.button("B"));
+                el.on_focus(move |_| { *fb.borrow_mut() += 1; })
+                  .empty();
+            }
             ui.eval();
         }
 
@@ -2524,14 +2647,16 @@ mod tests {
             let fc = focus_count.clone();
             let uc = unfocus_count.clone();
             let mut ui = ply.begin();
-            ui.element()
-                .id("a")
-                .width(fixed!(100.0))
-                .height(fixed!(50.0))
-                .accessibility(|a| a.button("A"))
-                .on_focus(move |_| { *fc.borrow_mut() += 1; })
-                .on_unfocus(move |_| { *uc.borrow_mut() += 1; })
-                .empty();
+            {
+                let mut el = ui.element();
+                el.id("a");
+                el.width(fixed!(100.0));
+                el.height(fixed!(50.0));
+                el.accessibility(|a| a.button("A"));
+                el.on_focus(move |_| { *fc.borrow_mut() += 1; })
+                  .on_unfocus(move |_| { *uc.borrow_mut() += 1; })
+                  .empty();
+            }
             ui.eval();
         }
 
@@ -2554,13 +2679,15 @@ mod tests {
         // Frame 1: layout
         {
             let mut ui = ply.begin();
-            ui.element()
-                .id("a")
-                .width(fixed!(100.0))
-                .height(fixed!(50.0))
-                .corner_radius(8.0)
-                .accessibility(|a| a.button("A"))
-                .empty();
+            {
+                let mut el = ui.element();
+                el.id("a");
+                el.width(fixed!(100.0));
+                el.height(fixed!(50.0));
+                el.corner_radius(8.0);
+                el.accessibility(|a| a.button("A"));
+                el.empty();
+            }
             ui.eval();
         }
 
@@ -2571,13 +2698,15 @@ mod tests {
         // Frame 2: eval to get render commands with focus ring
         {
             let mut ui = ply.begin();
-            ui.element()
-                .id("a")
-                .width(fixed!(100.0))
-                .height(fixed!(50.0))
-                .corner_radius(8.0)
-                .accessibility(|a| a.button("A"))
-                .empty();
+            {
+                let mut el = ui.element();
+                el.id("a");
+                el.width(fixed!(100.0));
+                el.height(fixed!(50.0));
+                el.corner_radius(8.0);
+                el.accessibility(|a| a.button("A"));
+                el.empty();
+            }
             let items = ui.eval();
 
             // Look for a border render command with z_index 32764 (the focus ring)
