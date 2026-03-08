@@ -4412,16 +4412,21 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
     }
 
     pub fn get_elapsed_since_birth(&self, elem_id: &Id) -> f32 {
-        let birth_time = self.layout_element_map
-            .get(&elem_id.id)
-            .map_or(0., |item| item.created_at);
+        let entry = self.layout_element_map.get(&elem_id.id);
 
-        self.current_time - birth_time
+        if let Some(entry) = entry {
+            if entry.generation == self.generation {
+                return self.current_time - entry.created_at;
+            }
+        }
+
+        0.
     }
 
     fn get_state(&self, elem_id: &Id, get_state: impl Fn(&LayoutElementHashMapItem) -> &LayoutElementInteractionState) -> &LayoutElementInteractionState {
         self.layout_element_map
             .get(&elem_id.id)
+            .filter(|entry| entry.generation == self.generation)
             .map(get_state)
             .unwrap_or(DEFAULT_STATE)
     }

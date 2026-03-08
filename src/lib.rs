@@ -95,6 +95,10 @@ pub struct ElementBuilder<'ply, CustomElementData: Clone + Default + std::fmt::D
 impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     ElementBuilder<'ply, CustomElementData>
 {
+    pub fn get_id(&self) -> u32 {
+        self.id.id
+    }
+
     /// Sets the width of the element.
     #[inline]
     pub fn width(&mut self, width: layout::Sizing) {
