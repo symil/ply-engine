@@ -2124,7 +2124,7 @@ pub async fn render<CustomElementData: Clone + Default + std::fmt::Debug>(
                 if cr.top_left == 0.0 && cr.top_right == 0.0 && cr.bottom_left == 0.0 && cr.bottom_right == 0.0 
                     && bw.left == bw.right && bw.left == bw.top && bw.left == bw.bottom
                 {
-                    let border_width = bw.left as f32;
+                    let border_width = (bw.left as f32) * 2.;
                     let offset = border_width * (0.25 - s / 2.);
 
                     draw_rectangle_lines(
