@@ -1,6 +1,8 @@
+use std::f32::consts::PI;
+
 use macroquad::prelude::*;
 use macroquad::miniquad::{BlendState, BlendFactor, BlendValue, Equation};
-use crate::{math::BoundingBox, render_commands::{CornerRadii, RenderCommand, RenderCommandConfig}, shaders::{ShaderConfig, ShaderUniformValue}};
+use crate::{math::BoundingBox, render_commands::{CornerRadii, RenderCommand, RenderCommandConfig}, shaders::{ShaderConfig, ShaderUniformValue}, elements::BorderPosition};
 
 #[cfg(feature = "text-styling")]
 use crate::text_styling::{render_styled_text, StyledSegment};
@@ -2114,155 +2116,102 @@ pub async fn render<CustomElementData: Clone + Default + std::fmt::Debug>(
                 let bw = &config.width;
                 let cr = &config.corner_radii;
                 let color = ply_to_macroquad_color(&config.color);
-                if cr.top_left == 0.0 && cr.top_right == 0.0 && cr.bottom_left == 0.0 && cr.bottom_right == 0.0 {
-                    if bw.left == bw.right && bw.left == bw.top && bw.left == bw.bottom {
-                        let border_width = bw.left as f32;
-                        draw_rectangle_lines(
-                            bb.x - border_width / 2.0,
-                            bb.y - border_width / 2.0,
-                            bb.width + border_width,
-                            bb.height + border_width,
-                            border_width,
-                            color
-                        );
-                    } else {
-                        // Top edge
-                        draw_line(
-                            bb.x,
-                            bb.y - bw.top as f32 / 2.0,
-                            bb.x + bb.width,
-                            bb.y - bw.top as f32 / 2.0,
-                            bw.top as f32,
-                            color
-                        );
-                        // Left edge
-                        draw_line(
-                            bb.x - bw.left as f32 / 2.0,
-                            bb.y,
-                            bb.x - bw.left as f32 / 2.0,
-                            bb.y + bb.height,
-                            bw.left as f32,
-                            color
-                        );
-                        // Bottom edge
-                        draw_line(
-                            bb.x,
-                            bb.y + bb.height + bw.bottom as f32 / 2.0,
-                            bb.x + bb.width,
-                            bb.y + bb.height + bw.bottom as f32 / 2.0,
-                            bw.bottom as f32,
-                            color
-                        );
-                        // Right edge
-                        draw_line(
-                            bb.x + bb.width + bw.right as f32 / 2.0,
-                            bb.y,
-                            bb.x + bb.width + bw.right as f32 / 2.0,
-                            bb.y + bb.height,
-                            bw.right as f32,
-                            color
-                        );
-                    }
-                } else {
-                    // Edges
-                    // Top edge
-                    draw_line(
-                        bb.x + cr.top_left,
-                        bb.y - bw.top as f32 / 2.0,
-                        bb.x + bb.width - cr.top_right,
-                        bb.y - bw.top as f32 / 2.0,
-                        bw.top as f32,
-                        color
-                    );
-                    // Left edge
-                    draw_line(
-                        bb.x - bw.left as f32 / 2.0,
-                        bb.y + cr.top_left,
-                        bb.x - bw.left as f32 / 2.0,
-                        bb.y + bb.height - cr.bottom_left,
-                        bw.left as f32,
-                        color
-                    );
-                    // Bottom edge
-                    draw_line(
-                        bb.x + cr.bottom_left,
-                        bb.y + bb.height + bw.bottom as f32 / 2.0,
-                        bb.x + bb.width - cr.bottom_right,
-                        bb.y + bb.height + bw.bottom as f32 / 2.0,
-                        bw.bottom as f32,
-                        color
-                    );
-                    // Right edge
-                    draw_line(
-                        bb.x + bb.width + bw.right as f32 / 2.0,
-                        bb.y + cr.top_right,
-                        bb.x + bb.width + bw.right as f32 / 2.0,
-                        bb.y + bb.height - cr.bottom_right,
-                        bw.right as f32,
-                        color
-                    );
+                let s = match config.position {
+                    BorderPosition::Outside => 1.,
+                    BorderPosition::Middle => 0.5,
+                    BorderPosition::Inside => 0.0,
+                };
 
-                    // Corners
-                    // Top-left corner
-                    if cr.top_left > 0.0 {
-                        let thickness = bw.left.max(bw.top) as f32;
-                        let points = ((std::f32::consts::PI * (cr.top_left + thickness)) / 2.0 / PIXELS_PER_POINT).max(5.0);
-                        draw_arc(
-                            bb.x + cr.top_left,
-                            bb.y + cr.top_left,
-                            points as u8,
-                            cr.top_left,
-                            180.0,
-                            thickness,
-                            90.0,
-                            color
-                        );
+                if cr.top_left == 0.0 && cr.top_right == 0.0 && cr.bottom_left == 0.0 && cr.bottom_right == 0.0 
+                    && bw.left == bw.right && bw.left == bw.top && bw.left == bw.bottom
+                {
+                    let border_width = (bw.left as f32) * 2.;
+                    let offset = border_width * s / 2.;
+
+                    draw_rectangle_lines(
+                        bb.x - offset,
+                        bb.y - offset,
+                        bb.width + offset * 2.,
+                        bb.height + offset * 2.,
+                        border_width,
+                        color
+                    );
+                } else {
+                    let get_sides = |corner: f32| {
+                        (std::f32::consts::PI * corner / (2.0 * PIXELS_PER_POINT)).max(5.0) as usize
+                    };
+                    let v = |x: f32, y: f32| {
+                        Vertex::new(x, y, 0., 0., 0., color)
+                    };
+
+                    let top = bw.top as f32;
+                    let left = bw.left as f32;
+                    let bottom = bw.bottom as f32;
+                    let right = bw.right as f32;
+                    let tl_r = cr.top_left;
+                    let tr_r = cr.top_right;
+                    let bl_r = cr.bottom_left;
+                    let br_r = cr.bottom_right;
+                    let tl_sides = get_sides(tl_r);
+                    let tr_sides = get_sides(tr_r);
+                    let bl_sides = get_sides(bl_r);
+                    let br_sides = get_sides(br_r);
+                    let side_count = tl_sides + tr_sides + bl_sides + br_sides;
+
+                    let x1 = bb.x - left * s;
+                    let x2 = bb.x + bb.width + right * s;
+                    let y1 = bb.y - top * s;
+                    let y2 = bb.y + bb.height + bottom * s;
+
+                    let mut vertices = Vec::<Vertex>::with_capacity(16 + side_count * 4);
+                    let mut indices = Vec::<u16>::with_capacity(24 + side_count * 6);
+
+                    vertices.extend([
+                        // Top edge
+                        v(x1 + tl_r, y1), v(x2 - tr_r, y1), v(x1 + tl_r, y1 + top), v(x2 - tr_r, y1 + top),
+                        // Bottom edge
+                        v(x1 + bl_r, y2), v(x2 - br_r, y2), v(x1 + bl_r, y2 - bottom), v(x2 - br_r, y2 - bottom),
+                        // Left edge
+                        v(x1, y1 + tl_r), v(x1, y2 - bl_r), v(x1 + left, y1 + tl_r), v(x1 + left, y2 - bl_r), 
+                        // Right edge
+                        v(x2, y1 + tr_r), v(x2, y2 - br_r), v(x2 - right, y1 + tr_r), v(x2 - right, y2 - br_r), 
+                    ]);
+
+
+                    for l in [0, 4, 8, 12] {
+                        indices.extend([l, l + 1, l + 2, l + 1, l + 2, l + 3]);
                     }
-                    // Top-right corner
-                    if cr.top_right > 0.0 {
-                        let thickness = bw.top.max(bw.right) as f32;
-                        let points = ((std::f32::consts::PI * (cr.top_right + thickness)) / 2.0 / PIXELS_PER_POINT).max(5.0);
-                        draw_arc(
-                            bb.x + bb.width - cr.top_right,
-                            bb.y + cr.top_right,
-                            points as u8,
-                            cr.top_right,
-                            270.0,
-                            thickness,
-                            90.0,
-                            color
-                        );
+
+                    let corners = [
+                        (tl_sides, PI, tl_r, x1 + tl_r, y1 + tl_r, left, top),
+                        (tr_sides, PI * 1.5, tr_r, x2 - tr_r, y1 + tr_r, -right, top),
+                        (bl_sides, PI * 0.5, bl_r, x1 + bl_r, y2 - bl_r, left, -bottom),
+                        (br_sides, 0., br_r, x2 - br_r, y2 - br_r, -right, -bottom),
+                    ];
+
+                    for (sides, start, r, x1, y1, dx, dy) in corners {
+                        let step = (PI / 2.) / (sides as f32);
+
+                        for i in 0..sides {
+                            let i = i as f32;
+                            let a1 = start + i * step;
+                            let a2 = a1 + step;
+                            let x2 = x1 + dx;
+                            let y2 = y1 + dy;
+                            let l = vertices.len() as u16;
+
+                            indices.extend([l, l + 1, l + 2, l + 1, l + 2, l + 3]);
+
+                            vertices.extend([
+                                v(x1 + a1.cos() * r, y1 + a1.sin() * r),
+                                v(x1 + a2.cos() * r, y1 + a2.sin() * r),
+                                v(x2 + a1.cos() * r, y2 + a1.sin() * r),
+                                v(x2 + a2.cos() * r, y2 + a2.sin() * r),
+                            ]);
+                        }
                     }
-                    // Bottom-left corner
-                    if cr.bottom_left > 0.0 {
-                        let thickness = bw.left.max(bw.bottom) as f32;
-                        let points = ((std::f32::consts::PI * (cr.bottom_left + thickness)) / 2.0 / PIXELS_PER_POINT).max(5.0);
-                        draw_arc(
-                            bb.x + cr.bottom_left,
-                            bb.y + bb.height - cr.bottom_left,
-                            points as u8,
-                            cr.bottom_left,
-                            90.0,
-                            thickness,
-                            90.0,
-                            color
-                        );
-                    }
-                    // Bottom-right corner
-                    if cr.bottom_right > 0.0 {
-                        let thickness = bw.bottom.max(bw.right) as f32;
-                        let points = ((std::f32::consts::PI * (cr.bottom_right + thickness)) / 2.0 / PIXELS_PER_POINT).max(5.0);
-                        draw_arc(
-                            bb.x + bb.width - cr.bottom_right,
-                            bb.y + bb.height - cr.bottom_right,
-                            points as u8,
-                            cr.bottom_right,
-                            0.0,
-                            thickness,
-                            90.0,
-                            color
-                        );
-                    }
+
+                    draw_mesh(&Mesh { vertices, indices, texture: None });
                 }
             }
             RenderCommandConfig::ScissorStart() => {
