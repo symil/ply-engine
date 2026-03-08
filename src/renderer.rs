@@ -2420,21 +2420,3 @@ fn compute_letter_spacing_x_scale(bb_width: f32, visible_char_count: usize, lett
         1.0
     }
 }
-
-pub fn fill_arc(x: f32, y: f32, sides: u8, radius: f32, rotation: f32, arc_angle: f32, color: Color) { 
-    let sides = sides.max(1) as usize; 
-    let rot = rotation.to_radians();
-    let arc = arc_angle.to_radians();
-
-    for i in 0..sides { 
-        let a0 = rot + arc * (i as f32 / sides as f32);
-        let a1 = rot + arc * ((i + 1) as f32 / sides as f32);
-
-        draw_triangle(
-            Vec2::new(x, y),
-            Vec2::new(x + a0.cos() * radius, y + a0.sin() * radius),
-            Vec2::new(x + a1.cos() * radius, y + a1.sin() * radius),
-            color, 
-        );
-    }
-} 
