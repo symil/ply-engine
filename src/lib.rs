@@ -81,7 +81,7 @@ impl<'ply, CustomElementData: Clone + Default + Debug> UiContent<'ply, CustomEle
 }
 
 /// Builder for creating elements with closure-based syntax.
-/// Methods return `self` by value for chaining. Finalize with `.children()` or `.empty()`.
+/// Methods return `&mut Self` for chaining. Finalize with `.children()` or `.empty()`.
 #[must_use]
 pub struct ElementBuilder<'ply, CustomElementData: Clone + Default + std::fmt::Debug = ()> {
     id: Id,
@@ -101,41 +101,47 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
 
     /// Sets the width of the element.
     #[inline]
-    pub fn width(&mut self, width: layout::Sizing) {
+    pub fn width(&mut self, width: layout::Sizing) -> &mut Self {
         self.inner.layout.sizing.width = width.into();
+        self
     }
 
     /// Sets the height of the element.
     #[inline]
-    pub fn height(&mut self, height: layout::Sizing) {
+    pub fn height(&mut self, height: layout::Sizing) -> &mut Self {
         self.inner.layout.sizing.height = height.into();
+        self
     }
 
     /// Sets the background color of the element.
     #[inline]
-    pub fn background_color(&mut self, color: impl Into<Color>) {
+    pub fn background_color(&mut self, color: impl Into<Color>) -> &mut Self {
         self.inner.background_color = color.into();
+        self
     }
 
     /// Sets the corner radius.
     /// Accepts `f32` (all corners) or `(f32, f32, f32, f32)` in CSS order (top-left, top-right, bottom-right, bottom-left).
     #[inline]
-    pub fn corner_radius(&mut self, radius: impl Into<layout::CornerRadius>) {
+    pub fn corner_radius(&mut self, radius: impl Into<layout::CornerRadius>) -> &mut Self {
         self.inner.corner_radius = radius.into();
+        self
     }
 
     /// Sets the element's ID.
     ///
     /// Accepts an `Id` or a `&'static str` label.
     #[inline]
-    pub fn id(&mut self, id: impl Into<Id>) {
+    pub fn id(&mut self, id: impl Into<Id>) -> &mut Self {
         self.id = id.into();
+        self
     }
 
     /// Sets the aspect ratio of the element.
     #[inline]
-    pub fn aspect_ratio(&mut self, aspect_ratio: f32) {
+    pub fn aspect_ratio(&mut self, aspect_ratio: f32) -> &mut Self {
         self.inner.aspect_ratio = aspect_ratio;
+        self
     }
 
     /// Configures overflow (clip and scroll) properties.
@@ -143,18 +149,20 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     pub fn overflow(
         &mut self,
         f: impl for<'a> FnOnce(&'a mut elements::OverflowBuilder) -> &'a mut elements::OverflowBuilder,
-    ) {
+    ) -> &mut Self {
         let mut builder = elements::OverflowBuilder {
             config: self.inner.clip,
         };
         f(&mut builder);
         self.inner.clip = builder.config;
+        self
     }
 
     /// Sets custom element data.
     #[inline]
-    pub fn custom_element(&mut self, data: CustomElementData) {
+    pub fn custom_element(&mut self, data: CustomElementData) -> &mut Self {
         self.inner.custom_data = Some(data);
+        self
     }
 
     /// Configures layout properties using a closure.
@@ -162,12 +170,13 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     pub fn layout(
         &mut self,
         f: impl for<'a> FnOnce(&'a mut layout::LayoutBuilder) -> &'a mut layout::LayoutBuilder,
-    ) {
+    ) -> &mut Self {
         let mut builder = layout::LayoutBuilder {
             config: self.inner.layout,
         };
         f(&mut builder);
         self.inner.layout = builder.config;
+        self
     }
 
     /// Configures floating properties using a closure.
@@ -175,12 +184,13 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     pub fn floating(
         &mut self,
         f: impl for<'a> FnOnce(&'a mut elements::FloatingBuilder) -> &'a mut elements::FloatingBuilder,
-    ) {
+    ) -> &mut Self {
         let mut builder = elements::FloatingBuilder {
             config: self.inner.floating,
         };
         f(&mut builder);
         self.inner.floating = builder.config;
+        self
     }
 
     /// Configures border properties using a closure.
@@ -188,12 +198,13 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     pub fn border(
         &mut self,
         f: impl for<'a> FnOnce(&'a mut elements::BorderBuilder) -> &'a mut elements::BorderBuilder,
-    ) {
+    ) -> &mut Self {
         let mut builder = elements::BorderBuilder {
             config: self.inner.border,
         };
         f(&mut builder);
         self.inner.border = builder.config;
+        self
     }
 
     /// Sets the image data for this element.
@@ -203,8 +214,9 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     /// - `Texture2D`: pre-existing GPU texture handle
     /// - `tinyvg::format::Image`: procedural TinyVG scene graph (requires `tinyvg` feature)
     #[inline]
-    pub fn image(&mut self, data: impl Into<renderer::ImageSource>) {
+    pub fn image(&mut self, data: impl Into<renderer::ImageSource>) -> &mut Self {
         self.inner.image_data = Some(data.into());
+        self
     }
 
     /// Adds a per-element shader effect.
@@ -226,10 +238,11 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
         &mut self,
         asset: &shaders::ShaderAsset,
         f: impl FnOnce(&mut shaders::ShaderBuilder<'_>),
-    ) {
+    ) -> &mut Self {
         let mut builder = shaders::ShaderBuilder::new(asset);
         f(&mut builder);
         self.inner.effects.push(builder.into_config());
+        self
     }
 
     /// Adds a group shader that captures the lement and its children to an offscreen buffer,
@@ -255,10 +268,11 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
         &mut self,
         asset: &shaders::ShaderAsset,
         f: impl FnOnce(&mut shaders::ShaderBuilder<'_>),
-    ) {
+    ) -> &mut Self {
         let mut builder = shaders::ShaderBuilder::new(asset);
         f(&mut builder);
         self.inner.shaders.push(builder.into_config());
+        self
     }
 
     /// Applies a visual rotation to the element and all its children.
@@ -287,12 +301,13 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
         f: impl for<'a> FnOnce(
             &'a mut elements::VisualRotationBuilder,
         ) -> &'a mut elements::VisualRotationBuilder,
-    ) {
+    ) -> &mut Self {
         let mut builder = elements::VisualRotationBuilder {
             config: engine::VisualRotationConfig::default(),
         };
         f(&mut builder);
         self.inner.visual_rotation = Some(builder.config);
+        self
     }
 
     /// Applies vertex-level shape rotation to this element's geometry.
@@ -316,12 +331,13 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
         f: impl for<'a> FnOnce(
             &'a mut elements::ShapeRotationBuilder,
         ) -> &'a mut elements::ShapeRotationBuilder,
-    ) {
+    ) -> &mut Self {
         let mut builder = elements::ShapeRotationBuilder {
             config: engine::ShapeRotationConfig::default(),
         };
         f(&mut builder);
         self.inner.shape_rotation = Some(builder.config);
+        self
     }
 
     /// Configures accessibility properties and focus ring styling.
@@ -342,17 +358,19 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
         f: impl for<'a> FnOnce(
             &'a mut accessibility::AccessibilityBuilder,
         ) -> &'a mut accessibility::AccessibilityBuilder,
-    ) {
+    ) -> &mut Self {
         let mut builder = accessibility::AccessibilityBuilder::new();
         f(&mut builder);
         self.inner.accessibility = Some(builder.config);
+        self
     }
 
     /// When set, clicking this element will not steal focus.
     /// Use this for toolbar buttons that modify a text input's content without unfocusing it.
     #[inline]
-    pub fn preserve_focus(&mut self) {
+    pub fn preserve_focus(&mut self) -> &mut Self {
         self.inner.preserve_focus = true;
+        self
     }
 
     pub fn elapsed(&self) -> f32 {
@@ -445,11 +463,11 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     /// ```
     #[inline]
     pub fn text_input(
-        mut self,
+        &mut self,
         f: impl for<'a> FnOnce(
             &'a mut text_input::TextInputBuilder,
         ) -> &'a mut text_input::TextInputBuilder,
-    ) -> Self {
+    ) -> &mut Self {
         let mut builder = text_input::TextInputBuilder::new();
         f(&mut builder);
         self.inner.text_input = Some(builder.config);
@@ -458,20 +476,21 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
         self
     }
 
-    pub fn cursor(&mut self, cursor: CursorIcon) {
+    pub fn cursor(&mut self, cursor: CursorIcon) -> &mut Self {
         self.ply.context.cursor_icon = cursor;
+        self
     }
 
     /// Applies the specified function to the element.
-    pub fn style(mut self, style: impl ElementStyle<CustomElementData>) -> Self {
-        style.style(&mut self);
+    pub fn style(&mut self, style: impl ElementStyle<CustomElementData>) -> &mut Self {
+        style.style(self);
         self
     }
 
     /// Finalizes the element with children defined in a closure.
-    pub fn children(&mut self, f: impl FnOnce(&mut Ui<'_, CustomElementData>)) -> Id {
+    pub fn children(&mut self, f: impl FnOnce(&mut Ui<'_, CustomElementData>)) {
         if self.finished {
-            return self.id.clone();
+            return;
         }
 
         let ElementBuilder {
@@ -492,7 +511,7 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
         // }
         ply.context.open_element_with_id(&id);
         ply.context.configure_open_element(&inner);
-        let element_id = ply.context.get_open_element_id();
+        // let element_id = ply.context.get_open_element_id();
 
         if text_input_on_changed_fn.is_some() || text_input_on_submit_fn.is_some() {
             ply.context.set_text_input_callbacks(
@@ -511,15 +530,10 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
         let ply = ui.content.take();
         ply.context.close_element();
         ply.context.seed_stack.pop();
-
-        Id {
-            id: element_id,
-            ..Default::default()
-        }
     }
 
     /// Finalizes the element with no children.
-    pub(crate) fn empty(&mut self) -> Id {
+    pub(crate) fn empty(&mut self) {
         self.children(|_| {})
     }
 }
