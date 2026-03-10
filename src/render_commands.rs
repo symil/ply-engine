@@ -80,13 +80,13 @@ pub struct Image {
 
 /// Represents a custom element with a background color, corner radii, and associated data.
 #[derive(Debug, Clone)]
-pub struct Custom<CustomElementData> {
+pub struct Custom {
     /// The background color of the custom element.
     pub background_color: Color,
     /// The corner radii for rounded edges.
     pub corner_radii: CornerRadii,
     /// The custom element data.
-    pub data: CustomElementData,
+    pub data: (),
 }
 
 impl CornerRadii {
@@ -111,7 +111,7 @@ impl From<crate::layout::CornerRadius> for CornerRadii {
 }
 
 #[derive(Debug, Clone)]
-pub enum RenderCommandConfig<CustomElementData> {
+pub enum RenderCommandConfig {
     None(),
     Rectangle(Rectangle),
     Border(Border),
@@ -119,7 +119,7 @@ pub enum RenderCommandConfig<CustomElementData> {
     Image(Image),
     ScissorStart(),
     ScissorEnd(),
-    Custom(Custom<CustomElementData>),
+    Custom(Custom),
     /// Begin a group: Renders children to an offscreen buffer.
     /// Optionally applies a fragment shader and/or visual rotation.
     GroupBegin {
@@ -131,10 +131,8 @@ pub enum RenderCommandConfig<CustomElementData> {
     GroupEnd,
 }
 
-impl<CustomElementData: Clone + Default + std::fmt::Debug>
-    RenderCommandConfig<CustomElementData>
-{
-    pub(crate) fn from_engine_render_command(value: &engine::InternalRenderCommand<CustomElementData>) -> Self {
+impl RenderCommandConfig {
+    pub(crate) fn from_engine_render_command(value: &engine::InternalRenderCommand) -> Self {
         match value.command_type {
             engine::RenderCommandType::None => Self::None(),
             engine::RenderCommandType::Rectangle => {
@@ -217,11 +215,11 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug>
 
 /// Represents a render command for drawing an element on the screen.
 #[derive(Debug, Clone)]
-pub struct RenderCommand<CustomElementData> {
+pub struct RenderCommand {
     /// The bounding box defining the area occupied by the element.
     pub bounding_box: BoundingBox,
     /// The specific configuration for rendering this command.
-    pub config: RenderCommandConfig<CustomElementData>,
+    pub config: RenderCommandConfig,
     /// A unique identifier for the render command.
     pub id: u32,
     /// The z-index determines the stacking order of elements.
@@ -233,8 +231,8 @@ pub struct RenderCommand<CustomElementData> {
     pub shape_rotation: Option<ShapeRotationConfig>,
 }
 
-impl<CustomElementData: Clone + Default + std::fmt::Debug> RenderCommand<CustomElementData> {
-    pub(crate) fn from_engine_render_command(value: &engine::InternalRenderCommand<CustomElementData>) -> Self {
+impl RenderCommand {
+    pub(crate) fn from_engine_render_command(value: &engine::InternalRenderCommand) -> Self {
         let mut config = RenderCommandConfig::from_engine_render_command(value);
         let bb = value.bounding_box;
         match &mut config {

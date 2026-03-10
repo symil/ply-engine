@@ -1517,9 +1517,9 @@ fn resize(texture: &Texture2D, height: f32, width: f32, clip: &Option<(i32, i32,
 }
 
 /// Draws all render commands to the screen using macroquad.
-pub async fn render<CustomElementData: Clone + Default + std::fmt::Debug>(
-    commands: Vec<RenderCommand<CustomElementData>>,
-    handle_custom_command: impl Fn(&RenderCommand<CustomElementData>),
+pub async fn render(
+    commands: Vec<RenderCommand>,
+    handle_custom_command: impl Fn(&RenderCommand),
 ) {
     let mut state = RenderState::new();
     for command in commands {

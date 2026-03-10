@@ -24,7 +24,7 @@ pub mod text_input;
 #[cfg(feature = "text-styling")]
 pub mod text_styling;
 
-use std::{fmt::Debug, mem::take, u32};
+use std::{marker::PhantomData, mem::take, u32};
 
 use id::Id;
 use macroquad::miniquad::{window::set_mouse_cursor, CursorIcon};
@@ -34,11 +34,9 @@ use text::TextConfig;
 
 pub use color::Color;
 
-use crate::elements::ElementStyle;
-
 #[allow(dead_code)]
-pub struct Ply<CustomElementData: Clone + Default + std::fmt::Debug = ()> {
-    context: engine::PlyContext<CustomElementData>,
+pub struct Ply<T = ()> {
+    context: engine::PlyContext,
     headless: bool,
     /// Key repeat tracking for text input control keys
     text_input_repeat_key: u32,
@@ -53,22 +51,23 @@ pub struct Ply<CustomElementData: Clone + Default + std::fmt::Debug = ()> {
     web_a11y_state: accessibility_web::WebAccessibilityState,
     #[cfg(all(feature = "a11y", not(target_arch = "wasm32")))]
     native_a11y_state: accessibility_native::NativeAccessibilityState,
+    _type: PhantomData<T>,
 }
 
-pub struct Ui<'ply, CustomElementData: Clone + Default + std::fmt::Debug = ()> {
-    content: UiContent<'ply, CustomElementData>,
+pub struct Ui<'ply> {
+    content: UiContent<'ply>,
 }
 
 #[derive(Default)]
-pub enum UiContent<'ply, CustomElementData: Clone + Default + Debug> {
+pub enum UiContent<'ply> {
     #[default]
     None,
-    Ply(&'ply mut Ply<CustomElementData>),
-    Element(ElementBuilder<'ply, CustomElementData>),
+    Ply(&'ply mut Ply),
+    Element(ElementBuilder<'ply>),
 }
 
-impl<'ply, CustomElementData: Clone + Default + Debug> UiContent<'ply, CustomElementData> {
-    fn take(&mut self) -> &'ply mut Ply<CustomElementData> {
+impl<'ply> UiContent<'ply> {
+    fn take(&mut self) -> &'ply mut Ply {
         match take(self) {
             UiContent::None => unreachable!(),
             UiContent::Ply(ply) => ply,
@@ -83,18 +82,16 @@ impl<'ply, CustomElementData: Clone + Default + Debug> UiContent<'ply, CustomEle
 /// Builder for creating elements with closure-based syntax.
 /// Methods return `&mut Self` for chaining. Finalize with `.children()` or `.empty()`.
 #[must_use]
-pub struct ElementBuilder<'ply, CustomElementData: Clone + Default + std::fmt::Debug = ()> {
+pub struct ElementBuilder<'ply> {
     id: Id,
     finished: bool,
-    ply: &'ply mut Ply<CustomElementData>,
-    inner: engine::ElementDeclaration<CustomElementData>,
+    ply: &'ply mut Ply,
+    inner: engine::ElementDeclaration,
     text_input_on_changed_fn: Option<Box<dyn FnMut(&str) + 'static>>,
     text_input_on_submit_fn: Option<Box<dyn FnMut(&str) + 'static>>,
 }
 
-impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
-    ElementBuilder<'ply, CustomElementData>
-{
+impl<'ply> ElementBuilder<'ply> {
     pub fn get_id(&self) -> u32 {
         self.id.id
     }
@@ -155,13 +152,6 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
         };
         f(&mut builder);
         self.inner.clip = builder.config;
-        self
-    }
-
-    /// Sets custom element data.
-    #[inline]
-    pub fn custom_element(&mut self, data: CustomElementData) -> &mut Self {
-        self.inner.custom_data = Some(data);
         self
     }
 
@@ -482,13 +472,13 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     }
 
     /// Applies the specified function to the element.
-    pub fn style(&mut self, style: impl ElementStyle<CustomElementData>) -> &mut Self {
-        style.style(self);
+    pub fn style(&mut self, style: impl FnOnce(&mut ElementBuilder)) -> &mut Self {
+        style(self);
         self
     }
 
     /// Finalizes the element with children defined in a closure.
-    pub fn children(&mut self, f: impl FnOnce(&mut Ui<'_, CustomElementData>)) {
+    pub fn children(&mut self, f: impl FnOnce(&mut Ui<'_>)) {
         if self.finished {
             return;
         }
@@ -533,39 +523,39 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug>
     }
 
     /// Finalizes the element with no children.
-    pub(crate) fn empty(&mut self) {
+    pub fn empty(&mut self) {
         self.children(|_| {})
     }
 }
 
-// impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug> Drop for ElementBuilder<'ply, CustomElementData> {
+// impl<'ply> Drop for ElementBuilder<'ply> {
 //     fn drop(&mut self) {
 //         self.empty();
 //     }
 // }
 
-impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug> core::ops::Deref
-    for Ui<'ply, CustomElementData>
+impl<'ply> core::ops::Deref
+    for Ui<'ply>
 {
-    type Target = Ply<CustomElementData>;
+    type Target = Ply;
 
     fn deref(&self) -> &Self::Target {
         self.ply()
     }
 }
 
-impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug> core::ops::DerefMut
-    for Ui<'ply, CustomElementData>
+impl<'ply> core::ops::DerefMut
+    for Ui<'ply>
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.ply_mut()
     }
 }
 
-impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug> Ui<'ply, CustomElementData> {
+impl<'ply> Ui<'ply> {
     /// Creates a new element builder for configuring and adding an element.
     /// Finalize with `.children(|ui| {...})` or `.empty()`.
-    pub fn element(&mut self) -> &mut ElementBuilder<'ply, CustomElementData> {
+    pub fn element(&mut self) -> &mut ElementBuilder<'ply> {
         let ply = self.content.take();
 
         let elt = ElementBuilder {
@@ -616,7 +606,7 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug> Ui<'ply, Custom
         self.ply().context.focused()
     }
 
-    fn ply(&self) -> &Ply<CustomElementData> {
+    fn ply(&self) -> &Ply {
         match &self.content {
             UiContent::None => unreachable!(),
             UiContent::Ply(ply) => ply,
@@ -624,7 +614,7 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug> Ui<'ply, Custom
         }
     }
 
-    fn ply_mut(&mut self) -> &mut Ply<CustomElementData> {
+    fn ply_mut(&mut self) -> &mut Ply {
         match &mut self.content {
             UiContent::None => unreachable!(),
             UiContent::Ply(ply) => ply,
@@ -633,9 +623,9 @@ impl<'ply, CustomElementData: Clone + Default + std::fmt::Debug> Ui<'ply, Custom
     }
 }
 
-impl<CustomElementData: Clone + Default + std::fmt::Debug> Ply<CustomElementData> {
+impl Ply {
     /// Starts a new frame, returning a [`Ui`] handle for building the element tree.
-    pub fn begin(&mut self) -> Ui<'_, CustomElementData> {
+    pub fn begin(&mut self) -> Ui<'_> {
         if !self.headless {
             self.context.set_layout_dimensions(Dimensions::new(
                 macroquad::prelude::screen_width(),
@@ -998,6 +988,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> Ply<CustomElementData
             web_a11y_state: accessibility_web::WebAccessibilityState::default(),
             #[cfg(all(feature = "a11y", not(target_arch = "wasm32")))]
             native_a11y_state: accessibility_native::NativeAccessibilityState::default(),
+            _type: PhantomData
         };
         ply.context.default_font_key = default_font.key();
         ply.set_measure_text_function(renderer::create_measure_text_function());
@@ -1021,6 +1012,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> Ply<CustomElementData
             web_a11y_state: accessibility_web::WebAccessibilityState::default(),
             #[cfg(all(feature = "a11y", not(target_arch = "wasm32")))]
             native_a11y_state: accessibility_native::NativeAccessibilityState::default(),
+            _type: PhantomData
         }
     }
 
@@ -1165,7 +1157,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> Ply<CustomElementData
     }
 
     /// Evaluate the layout and return all render commands.
-    pub fn eval(&mut self) -> Vec<RenderCommand<CustomElementData>> {
+    pub fn eval(&mut self) -> Vec<RenderCommand> {
         // Clean up stale networking entries (feature-gated)
         #[cfg(feature = "net")]
         net::NET_MANAGER.lock().unwrap().clean();
@@ -1214,7 +1206,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> Ply<CustomElementData
     /// Evaluate the layout and render all commands.
     pub async fn show(
         &mut self,
-        handle_custom_command: impl Fn(&RenderCommand<CustomElementData>),
+        handle_custom_command: impl Fn(&RenderCommand),
     ) {
         let commands = self.eval();
         renderer::render(commands, handle_custom_command).await;

@@ -23,6 +23,8 @@ const DEFAULT_MAX_MEASURE_TEXT_WORD_CACHE_COUNT: i32 = 16384;
 const MAXFLOAT: f32 = 3.40282346638528859812e+38;
 const EPSILON: f32 = 0.01;
 
+type CustomElementData = ();
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[repr(u8)]
 pub enum SizingType {
@@ -264,14 +266,14 @@ pub struct BorderConfig {
 
 /// The top-level element declaration.
 #[derive(Debug, Clone)]
-pub struct ElementDeclaration<CustomElementData: Clone + Default + std::fmt::Debug = ()> {
+pub struct ElementDeclaration {
     pub layout: LayoutConfig,
     pub background_color: Color,
     pub corner_radius: CornerRadius,
     pub aspect_ratio: f32,
     pub image_data: Option<ImageSource>,
     pub floating: FloatingConfig,
-    pub custom_data: Option<CustomElementData>,
+    pub custom_data: Option<()>,
     pub clip: ClipConfig,
     pub border: BorderConfig,
     pub user_data: usize,
@@ -284,7 +286,7 @@ pub struct ElementDeclaration<CustomElementData: Clone + Default + std::fmt::Deb
     pub preserve_focus: bool,
 }
 
-impl<CustomElementData: Clone + Default + std::fmt::Debug> Default for ElementDeclaration<CustomElementData> {
+impl Default for ElementDeclaration {
     fn default() -> Self {
         Self {
             layout: LayoutConfig::default(),
@@ -502,10 +504,10 @@ struct BooleanWarnings {
 }
 
 #[derive(Debug, Clone)]
-pub struct InternalRenderCommand<CustomElementData: Clone + Default + std::fmt::Debug = ()> {
+pub struct InternalRenderCommand {
     pub bounding_box: BoundingBox,
     pub command_type: RenderCommandType,
-    pub render_data: InternalRenderData<CustomElementData>,
+    pub render_data: InternalRenderData,
     pub user_data: usize,
     pub id: u32,
     pub z_index: i16,
@@ -515,7 +517,7 @@ pub struct InternalRenderCommand<CustomElementData: Clone + Default + std::fmt::
 }
 
 #[derive(Debug, Clone)]
-pub enum InternalRenderData<CustomElementData: Clone + Default + std::fmt::Debug = ()> {
+pub enum InternalRenderData {
     None,
     Rectangle {
         background_color: Color,
@@ -551,13 +553,13 @@ pub enum InternalRenderData<CustomElementData: Clone + Default + std::fmt::Debug
     },
 }
 
-impl<CustomElementData: Clone + Default + std::fmt::Debug> Default for InternalRenderData<CustomElementData> {
+impl Default for InternalRenderData {
     fn default() -> Self {
         Self::None
     }
 }
 
-impl<CustomElementData: Clone + Default + std::fmt::Debug> Default for InternalRenderCommand<CustomElementData> {
+impl Default for InternalRenderCommand {
     fn default() -> Self {
         Self {
             bounding_box: BoundingBox::default(),
@@ -596,7 +598,7 @@ impl Default for ScrollContainerData {
     }
 }
 
-pub struct PlyContext<CustomElementData: Clone + Default + std::fmt::Debug = ()> {
+pub struct PlyContext {
     // Settings
     pub max_element_count: i32,
     pub max_measure_text_cache_word_count: i32,
@@ -625,7 +627,7 @@ pub struct PlyContext<CustomElementData: Clone + Default + std::fmt::Debug = ()>
 
     // Layout elements
     layout_elements: Vec<LayoutElement>,
-    render_commands: Vec<InternalRenderCommand<CustomElementData>>,
+    render_commands: Vec<InternalRenderCommand>,
     open_layout_element_stack: Vec<i32>,
     layout_element_children: Vec<i32>,
     layout_element_children_buffer: Vec<i32>,
@@ -829,7 +831,7 @@ fn point_is_inside_rect(point: Vector2, rect: BoundingBox) -> bool {
         && point.y <= rect.y + rect.height
 }
 
-impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElementData> {
+impl PlyContext {
     pub fn new(dimensions: Dimensions) -> Self {
         let max_element_count = DEFAULT_MAX_ELEMENT_COUNT;
         let max_measure_text_cache_word_count = DEFAULT_MAX_MEASURE_TEXT_WORD_CACHE_COUNT;
@@ -1139,7 +1141,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
         }
     }
 
-    pub fn configure_open_element(&mut self, declaration: &ElementDeclaration<CustomElementData>) {
+    pub fn configure_open_element(&mut self, declaration: &ElementDeclaration) {
         if self.boolean_warnings.max_elements_exceeded {
             return;
         }
@@ -2083,7 +2085,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
         });
     }
 
-    pub fn end_layout(&mut self) -> &[InternalRenderCommand<CustomElementData>] {
+    pub fn end_layout(&mut self) -> &[InternalRenderCommand] {
         self.close_element();
 
         if self.open_layout_element_stack.len() > 1 {
@@ -2834,7 +2836,7 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
             || bbox.y + bbox.height < 0.0
     }
 
-    fn add_render_command(&mut self, cmd: InternalRenderCommand<CustomElementData>) {
+    fn add_render_command(&mut self, cmd: InternalRenderCommand) {
         self.render_commands.push(cmd);
     }
 
@@ -5505,19 +5507,19 @@ impl<CustomElementData: Clone + Default + std::fmt::Debug> PlyContext<CustomElem
     }
 
     /// Helper: open an element, configure, return nothing. Caller must close_element().
-    fn debug_open(&mut self, decl: &ElementDeclaration<CustomElementData>) {
+    fn debug_open(&mut self, decl: &ElementDeclaration) {
         self.open_element();
         self.configure_open_element(decl);
     }
 
     /// Helper: open a named element, configure. Caller must close_element().
-    fn debug_open_id(&mut self, name: &str, decl: &ElementDeclaration<CustomElementData>) {
+    fn debug_open_id(&mut self, name: &str, decl: &ElementDeclaration) {
         self.open_element_with_id(&hash_string(name, 0));
         self.configure_open_element(decl);
     }
 
     /// Helper: open a named+indexed element, configure. Caller must close_element().
-    fn debug_open_idi(&mut self, name: &str, offset: u32, decl: &ElementDeclaration<CustomElementData>) {
+    fn debug_open_idi(&mut self, name: &str, offset: u32, decl: &ElementDeclaration) {
         self.open_element_with_id(&hash_string_with_offset(name, offset, 0));
         self.configure_open_element(decl);
     }
