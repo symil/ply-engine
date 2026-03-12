@@ -1,6 +1,8 @@
 //! Pure Rust implementation of the Ply layout engine.
 //! A UI layout engine inspired by Clay.
 
+use std::any::Any;
+use std::sync::Arc;
 use std::u32;
 
 use macroquad::miniquad::CursorIcon;
@@ -23,7 +25,10 @@ const DEFAULT_MAX_MEASURE_TEXT_WORD_CACHE_COUNT: i32 = 16384;
 const MAXFLOAT: f32 = 3.40282346638528859812e+38;
 const EPSILON: f32 = 0.01;
 
+// TODO: rename that to convey rendering
 type CustomElementData = ();
+
+pub type DragData = Arc<dyn Any>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[repr(u8)]
@@ -264,6 +269,11 @@ pub struct BorderConfig {
     pub position: BorderPosition,
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DragConfig {
+    pub is_source: bool,
+}
+
 /// The top-level element declaration.
 #[derive(Debug, Clone)]
 pub struct ElementDeclaration {
@@ -284,6 +294,7 @@ pub struct ElementDeclaration {
     pub accessibility: Option<crate::accessibility::AccessibilityConfig>,
     pub text_input: Option<crate::text_input::TextInputConfig>,
     pub preserve_focus: bool,
+    pub drag: DragConfig,
 }
 
 impl Default for ElementDeclaration {
@@ -306,6 +317,7 @@ impl Default for ElementDeclaration {
             accessibility: None,
             text_input: None,
             preserve_focus: false,
+            drag: DragConfig::default(),
         }
     }
 }
@@ -488,10 +500,19 @@ struct FocusableEntry {
     insertion_order: u32,
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct PointerData {
     pub position: Vector2,
+    pub delta: Vector2,
     pub state: PointerDataInteractionState,
+    pub drag: Option<PointerDragData>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PointerDragData {
+    pub start_position: Vector2,
+    pub offset: Vector2,
+    pub data: Option<DragData>,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -4054,6 +4075,8 @@ impl PlyContext {
         if self.boolean_warnings.max_elements_exceeded {
             return;
         }
+
+        self.pointer_info.delta = position - self.pointer_info.position;
         self.pointer_info.position = position;
         self.pointer_over_ids.clear();
 
@@ -4099,7 +4122,6 @@ impl PlyContext {
                             .unwrap_or(false);
 
                     if point_is_inside_rect(position, elem_box) && clip_ok {
-                        // Call hover callbacks
                         if let Some(item) = self.layout_element_map.get_mut(&elem_id) {
                             if item.hover.added_since.is_none() {
                                 item.hover.added_since = Some(self.current_time);

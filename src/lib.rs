@@ -96,6 +96,11 @@ impl<'ply> ElementBuilder<'ply> {
         self.id.id
     }
 
+    pub fn drag_source<T: 'static>(&mut self) -> &mut Self {
+        self.inner.drag.is_source = true;
+        self
+    }
+
     /// Sets the width of the element.
     #[inline]
     pub fn width(&mut self, width: layout::Sizing) -> &mut Self {

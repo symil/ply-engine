@@ -107,7 +107,7 @@ impl FloatingBuilder {
     pub fn clip_by_parent(&mut self) -> &mut Self {
         self.config.clip_to = FloatingClipToElement::AttachedParent;
         self
-    }
+    }   
 
     /// Sets pointer capture mode to Passthrough.
     #[inline]
